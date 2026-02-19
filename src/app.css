@@ -1,17 +1,17 @@
 :root {
-	--bg-primary: #1a1a2e;
-	--bg-secondary: #16213e;
-	--bg-card: #0f3460;
-	--bg-input: #1a1a3e;
+	--bg-primary: #0a1f12;
+	--bg-secondary: #0f2e1a;
+	--bg-card: #0d4025;
+	--bg-input: #0c2416;
 	--text-primary: #e8e8e8;
-	--text-secondary: #a0a0b0;
-	--text-muted: #6a6a7a;
-	--accent: #e94560;
-	--accent-hover: #ff6b81;
+	--text-secondary: #a0b0a4;
+	--text-muted: #5a7a62;
+	--accent: #22c55e;
+	--accent-hover: #4ade80;
 	--success: #4ade80;
 	--danger: #ef4444;
 	--warning: #fbbf24;
-	--border: #2a2a4e;
+	--border: #1e4a2d;
 	--radius: 8px;
 	--topbar-height: 44px;
 }
