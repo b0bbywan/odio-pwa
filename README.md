@@ -1,4 +1,4 @@
-# odio-pwa-app
+# odio-pwa
 
 Progressive Web App for discovering and controlling [odio-api](https://github.com/b0bbywan/go-odio-api) instances on your local network.
 
@@ -21,8 +21,8 @@ Manage multiple odio-api endpoints from a single interface — add instances man
 ## Installation
 
 ```bash
-git clone https://github.com/b0bbywan/odio-pwa-app.git
-cd odio-pwa-app
+git clone https://github.com/b0bbywan/odio-pwa.git
+cd odio-pwa
 npm install
 ```
 

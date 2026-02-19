@@ -33,7 +33,7 @@
 		{#if instance.serverInfo && instance.status === 'online'}
 			<div class="card-info">
 				<small
-					>{instance.serverInfo.os_platform} &mdash; {instance.serverInfo.api_sw} v{instance
+					>{instance.serverInfo.os_platform} &mdash; {instance.serverInfo.api_sw} {instance
 						.serverInfo.api_version}</small
 				>
 			</div>
