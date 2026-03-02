@@ -1,10 +1,8 @@
 import type { OdioInstance, AppView } from './types';
-import { connectSSE, type SSEExtraCallbacks } from './sse';
-import { probeInstance } from './api';
+import { createConnection } from './connection';
 
 const STORAGE_KEY = 'odio-instances';
 const SSE_LIMIT = 6;
-const POLL_INTERVAL_MS = 30_000;
 
 function loadInstances(): OdioInstance[] {
 	try {
@@ -41,13 +39,19 @@ export function byPriority(a: OdioInstance, b: OdioInstance): number {
 	return (b.connectedAt ?? 0) - (a.connectedAt ?? 0);
 }
 
+export interface InstanceCallbacks {
+	onPowerAction?: (action: 'reboot' | 'poweroff') => void;
+	onGiveUp?: () => void;
+}
+
 export class AppState {
 	instances: OdioInstance[] = $state(loadInstances());
 	currentView: AppView = $state('list');
 	activeInstanceId: string | null = $state(null);
 
-	private sseCleanup = new Map<string, () => void>();
-	private pollingTimers = new Map<string, ReturnType<typeof setInterval>>();
+	// SSE connections (max SSE_LIMIT); polling connections for the rest
+	private sseConnections = new Map<string, () => void>();
+	private pollConnections = new Map<string, () => void>();
 
 	get activeInstance(): OdioInstance | undefined {
 		return this.instances.find((i) => i.id === this.activeInstanceId);
@@ -65,8 +69,7 @@ export class AppState {
 		const id = crypto.randomUUID();
 		this.instances.push({ id, host, port, label, status: 'unknown', serverInfo: null });
 		saveInstances(this.instances);
-		// give SSE to the new instance if under the limit, otherwise poll
-		if (this.sseCleanup.size < SSE_LIMIT) {
+		if (this.sseConnections.size < SSE_LIMIT) {
 			this.connectOne(id);
 		} else {
 			this.startPolling(id);
@@ -108,63 +111,51 @@ export class AppState {
 		this.currentView = 'list';
 	}
 
-	connectOne(id: string, extra?: SSEExtraCallbacks): void {
+	connectOne(id: string, extra?: InstanceCallbacks): void {
 		const inst = this.instances.find((i) => i.id === id);
 		if (!inst) return;
-		inst.status = 'probing';
-		const cleanup = connectSSE(
-			inst.host,
-			inst.port,
-			async () => {
-				try {
-					inst.serverInfo = await probeInstance(inst.host, inst.port);
-					inst.connectedAt = Date.now();
-					inst.status = 'online';
-				} catch {
-					inst.status = 'offline';
-				}
+		this.disconnectOne(id);
+		const destroy = createConnection(inst.host, inst.port, {
+			onStatus: (status) => {
+				inst.status = status;
+			},
+			onServerInfo: (info) => {
+				inst.serverInfo = info;
+				inst.connectedAt = Date.now();
 				saveInstances(this.instances);
 			},
-			() => {
-				// server.info keepalive — instance is alive, data comes from GET /server on open
-				inst.status = 'online';
-			},
-			() => {
-				inst.status = 'offline';
-				saveInstances(this.instances);
-			},
-			extra,
-		);
-		this.sseCleanup.set(id, cleanup);
+			onGiveUp: extra?.onGiveUp ?? (() => {}),
+			onPowerAction: extra?.onPowerAction,
+		});
+		this.sseConnections.set(id, destroy);
 	}
 
 	disconnectOne(id: string): void {
-		this.sseCleanup.get(id)?.();
-		this.sseCleanup.delete(id);
-	}
-
-	private async pollOne(id: string): Promise<void> {
-		const inst = this.instances.find((i) => i.id === id);
-		if (!inst) return;
-		inst.status = 'probing';
-		try {
-			inst.serverInfo = await probeInstance(inst.host, inst.port);
-			inst.connectedAt = Date.now();
-			inst.status = 'online';
-		} catch {
-			inst.status = 'offline';
-		}
-		saveInstances(this.instances);
+		this.sseConnections.get(id)?.();
+		this.sseConnections.delete(id);
 	}
 
 	private startPolling(id: string): void {
-		this.pollOne(id);
-		this.pollingTimers.set(id, setInterval(() => this.pollOne(id), POLL_INTERVAL_MS));
+		const inst = this.instances.find((i) => i.id === id);
+		if (!inst) return;
+		this.stopPolling(id);
+		const destroy = createConnection(inst.host, inst.port, {
+			onStatus: (status) => {
+				inst.status = status;
+			},
+			onServerInfo: (info) => {
+				inst.serverInfo = info;
+				inst.connectedAt = Date.now();
+				saveInstances(this.instances);
+			},
+			onGiveUp: () => {}, // background instances have no power UI
+		}, { useSSE: false });
+		this.pollConnections.set(id, destroy);
 	}
 
 	private stopPolling(id: string): void {
-		clearInterval(this.pollingTimers.get(id));
-		this.pollingTimers.delete(id);
+		this.pollConnections.get(id)?.();
+		this.pollConnections.delete(id);
 	}
 
 	connectAll(): void {
@@ -174,20 +165,17 @@ export class AppState {
 	}
 
 	disconnectAll(): void {
-		this.sseCleanup.forEach((cleanup) => cleanup());
-		this.sseCleanup.clear();
-		this.pollingTimers.forEach((timer) => clearInterval(timer));
-		this.pollingTimers.clear();
+		this.sseConnections.forEach((destroy) => destroy());
+		this.sseConnections.clear();
+		this.pollConnections.forEach((destroy) => destroy());
+		this.pollConnections.clear();
 	}
 
-	// Reconnects SSE or re-polls — used by refresh buttons
+	// Always does a fresh probe + SSE attempt
 	probeOne(id: string): void {
-		if (this.sseCleanup.has(id)) {
-			this.disconnectOne(id);
-			this.connectOne(id);
-		} else {
-			this.pollOne(id);
-		}
+		this.stopPolling(id);
+		this.disconnectOne(id);
+		this.connectOne(id);
 	}
 
 	probeAll(): void {
