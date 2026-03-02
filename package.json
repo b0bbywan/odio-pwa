@@ -10,7 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "overrides": {
-    "minimatch": ">=10.2.1"
+    "minimatch": ">=10.2.3",
+    "serialize-javascript": ">=7.0.3"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
