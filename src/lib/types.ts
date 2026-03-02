@@ -24,3 +24,5 @@ export interface OdioInstance {
 }
 
 export type AppView = 'list' | 'instance';
+
+export type PowerEvent = 'reboot' | 'poweroff';
