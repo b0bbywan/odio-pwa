@@ -1,4 +1,5 @@
 import type { OdioInstance, AppView } from './types';
+import { connectSSE } from './sse';
 import { probeInstance } from './api';
 
 const STORAGE_KEY = 'odio-instances';
@@ -34,6 +35,8 @@ class AppState {
 	currentView: AppView = $state('list');
 	activeInstanceId: string | null = $state(null);
 
+	private sseCleanup = new Map<string, () => void>();
+
 	get activeInstance(): OdioInstance | undefined {
 		return this.instances.find((i) => i.id === this.activeInstanceId);
 	}
@@ -44,19 +47,13 @@ class AppState {
 
 	addInstance(host: string, port: number, label?: string): void {
 		const id = crypto.randomUUID();
-		this.instances.push({
-			id,
-			host,
-			port,
-			label,
-			status: 'unknown',
-			serverInfo: null,
-		});
+		this.instances.push({ id, host, port, label, status: 'unknown', serverInfo: null });
 		saveInstances(this.instances);
-		this.probeOne(id);
+		this.connectOne(id);
 	}
 
 	removeInstance(id: string): void {
+		this.disconnectOne(id);
 		const idx = this.instances.findIndex((i) => i.id === id);
 		if (idx !== -1) {
 			this.instances.splice(idx, 1);
@@ -76,6 +73,7 @@ class AppState {
 			inst.label = label;
 			inst.status = 'unknown';
 			saveInstances(this.instances);
+			// reconnect to the new host/port
 			this.probeOne(id);
 		}
 	}
@@ -89,22 +87,59 @@ class AppState {
 		this.currentView = 'list';
 	}
 
-	async probeOne(id: string): Promise<void> {
+	connectOne(id: string): void {
 		const inst = this.instances.find((i) => i.id === id);
 		if (!inst) return;
 		inst.status = 'probing';
-		try {
-			const info = await probeInstance(inst.host, inst.port);
-			inst.serverInfo = info;
-			inst.status = 'online';
-		} catch {
-			inst.status = 'offline';
-		}
-		saveInstances(this.instances);
+		const cleanup = connectSSE(
+			inst.host,
+			inst.port,
+			async () => {
+				// SSE connected — fetch server info via GET /server
+				try {
+					inst.serverInfo = await probeInstance(inst.host, inst.port);
+					inst.status = 'online';
+				} catch {
+					inst.status = 'offline';
+				}
+				saveInstances(this.instances);
+			},
+			(info) => {
+				// server.info SSE event — keep serverInfo in sync
+				inst.serverInfo = info;
+				inst.status = 'online';
+				saveInstances(this.instances);
+			},
+			() => {
+				inst.status = 'offline';
+				saveInstances(this.instances);
+			},
+		);
+		this.sseCleanup.set(id, cleanup);
 	}
 
-	async probeAll(): Promise<void> {
-		await Promise.allSettled(this.instances.map((i) => this.probeOne(i.id)));
+	disconnectOne(id: string): void {
+		this.sseCleanup.get(id)?.();
+		this.sseCleanup.delete(id);
+	}
+
+	connectAll(): void {
+		this.instances.forEach((i) => this.connectOne(i.id));
+	}
+
+	disconnectAll(): void {
+		this.sseCleanup.forEach((cleanup) => cleanup());
+		this.sseCleanup.clear();
+	}
+
+	// Reconnects SSE — used by the per-card and global refresh buttons
+	probeOne(id: string): void {
+		this.disconnectOne(id);
+		this.connectOne(id);
+	}
+
+	probeAll(): void {
+		this.instances.forEach((i) => this.probeOne(i.id));
 	}
 }
 

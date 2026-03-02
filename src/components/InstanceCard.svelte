@@ -30,7 +30,7 @@
 			<h3>{displayName}</h3>
 		</div>
 
-		{#if instance.serverInfo && instance.status === 'online'}
+		{#if instance.serverInfo}
 			<div class="card-info">
 				<small
 					>{instance.serverInfo.os_platform} &mdash; {instance.serverInfo.api_sw} {instance
