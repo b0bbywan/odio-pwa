@@ -6,13 +6,14 @@
 	let showAddForm = $state(false);
 
 	$effect(() => {
-		appState.probeAll();
+		appState.connectAll();
+		return () => appState.disconnectAll();
 	});
 </script>
 
 <main class="instance-list">
 	<header class="list-header">
-		<h1>odio</h1>
+		<h1>Odio</h1>
 		<button class="btn-icon" onclick={() => appState.probeAll()} title="Refresh all">
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
 				<polyline points="23 4 23 10 17 10" />

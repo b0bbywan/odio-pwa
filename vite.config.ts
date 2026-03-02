@@ -9,8 +9,8 @@ export default defineConfig({
 			registerType: 'autoUpdate',
 			includeAssets: ['favicon.svg', 'apple-touch-icon-180x180.png'],
 			manifest: {
-				name: 'odio - Network Audio Controller',
-				short_name: 'odio',
+				name: 'Odio - Multimedia Remote Controller',
+				short_name: 'Odio',
 				description: 'Discover and control odio-api instances on your local network',
 				theme_color: '#0a1f12',
 				background_color: '#0a1f12',
