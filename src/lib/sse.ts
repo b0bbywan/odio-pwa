@@ -1,10 +1,8 @@
-import type { OdioServerInfo } from './types';
-
 export function connectSSE(
 	host: string,
 	port: number,
 	onOpen: () => void,
-	onInfo: (info: OdioServerInfo) => void,
+	onAlive: () => void,
 	onOffline: () => void,
 ): () => void {
 	const es = new EventSource(`http://${host}:${port}/events?types=server.info`);
@@ -13,12 +11,9 @@ export function connectSSE(
 		onOpen();
 	});
 
-	es.addEventListener('server.info', (e: MessageEvent) => {
-		try {
-			onInfo(JSON.parse(e.data) as OdioServerInfo);
-		} catch {
-			// ignore malformed event data
-		}
+	// server.info events are keepalives — signal aliveness only, data comes from GET /server
+	es.addEventListener('server.info', () => {
+		onAlive();
 	});
 
 	// onerror fires both on initial failure and on dropped connections;

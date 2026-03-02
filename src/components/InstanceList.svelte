@@ -1,11 +1,12 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { appState } from '../lib/state.svelte';
 	import InstanceCard from './InstanceCard.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 
 	let showAddForm = $state(false);
 
-	$effect(() => {
+	onMount(() => {
 		appState.connectAll();
 		function onVisible() {
 			if (document.visibilityState === 'visible') appState.probeAll();

@@ -125,11 +125,9 @@ class AppState {
 				}
 				saveInstances(this.instances);
 			},
-			(info) => {
-				inst.serverInfo = info;
-				inst.connectedAt = Date.now();
+			() => {
+				// server.info keepalive — instance is alive, data comes from GET /server on open
 				inst.status = 'online';
-				saveInstances(this.instances);
 			},
 			() => {
 				inst.status = 'offline';
