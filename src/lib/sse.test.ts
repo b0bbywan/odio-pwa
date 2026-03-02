@@ -75,22 +75,13 @@ describe('connectSSE — server.info event', () => {
 		expect(onAlive).toHaveBeenCalledOnce();
 	});
 
-	test('calls onOffline for "bye" when no onBye callback', () => {
+	test('calls onOffline for "bye"', () => {
 		const onAlive = vi.fn();
 		const onOffline = vi.fn();
 		connectSSE('host', 8080, vi.fn(), onAlive, onOffline);
 		lastES().emit('server.info', '"bye"');
 		expect(onOffline).toHaveBeenCalledOnce();
 		expect(onAlive).not.toHaveBeenCalled();
-	});
-
-	test('calls onBye for "bye" when callback provided', () => {
-		const onBye = vi.fn();
-		const onOffline = vi.fn();
-		connectSSE('host', 8080, vi.fn(), vi.fn(), onOffline, { onBye });
-		lastES().emit('server.info', '"bye"');
-		expect(onBye).toHaveBeenCalledOnce();
-		expect(onOffline).not.toHaveBeenCalled();
 	});
 
 	test('calls onAlive for unknown data (forward compat)', () => {

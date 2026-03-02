@@ -1,6 +1,5 @@
 export interface SSEExtraCallbacks {
 	onPowerAction?: (action: 'reboot' | 'poweroff') => void;
-	onBye?: () => void;
 }
 
 export function connectSSE(
@@ -22,14 +21,14 @@ export function connectSSE(
 	es.addEventListener('server.info', (e: MessageEvent) => {
 		try {
 			if (JSON.parse(e.data) === 'bye') {
-				extra?.onBye ? extra.onBye() : onOffline();
+				onOffline();
 				return;
 			}
 		} catch { /* ignore malformed data */ }
 		onAlive();
 	});
 
-	// onerror fires on connection failure/drop; EventSource auto-retries
+	// onerror fires on connection failure/drop
 	es.addEventListener('error', () => onOffline());
 
 	if (extra?.onPowerAction) {
