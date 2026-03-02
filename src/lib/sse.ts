@@ -1,26 +1,45 @@
+export interface SSEExtraCallbacks {
+	onPowerAction?: (action: 'reboot' | 'poweroff') => void;
+	onBye?: () => void;
+}
+
 export function connectSSE(
 	host: string,
 	port: number,
 	onOpen: () => void,
 	onAlive: () => void,
 	onOffline: () => void,
+	extra?: SSEExtraCallbacks,
 ): () => void {
-	const es = new EventSource(`http://${host}:${port}/events?types=server.info`);
+	const types = ['server.info'];
+	if (extra?.onPowerAction) types.push('power.action');
 
-	es.addEventListener('open', () => {
-		onOpen();
-	});
+	const es = new EventSource(`http://${host}:${port}/events?types=${types.join(',')}`);
 
-	// server.info events are keepalives — signal aliveness only, data comes from GET /server
-	es.addEventListener('server.info', () => {
+	es.addEventListener('open', () => onOpen());
+
+	// server.info data: "connected" (on open), "love" (keepalive every 30s), "bye" (shutdown)
+	es.addEventListener('server.info', (e: MessageEvent) => {
+		try {
+			if (JSON.parse(e.data) === 'bye') {
+				extra?.onBye ? extra.onBye() : onOffline();
+				return;
+			}
+		} catch { /* ignore malformed data */ }
 		onAlive();
 	});
 
-	// onerror fires both on initial failure and on dropped connections;
-	// EventSource auto-retries so we just mark offline and wait for next server.info
-	es.addEventListener('error', () => {
-		onOffline();
-	});
+	// onerror fires on connection failure/drop; EventSource auto-retries
+	es.addEventListener('error', () => onOffline());
+
+	if (extra?.onPowerAction) {
+		es.addEventListener('power.action', (e: MessageEvent) => {
+			try {
+				const { action } = JSON.parse(e.data) as { action: 'reboot' | 'poweroff' };
+				extra.onPowerAction!(action);
+			} catch { /* ignore malformed data */ }
+		});
+	}
 
 	return () => es.close();
 }

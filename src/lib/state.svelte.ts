@@ -1,5 +1,5 @@
 import type { OdioInstance, AppView } from './types';
-import { connectSSE } from './sse';
+import { connectSSE, type SSEExtraCallbacks } from './sse';
 import { probeInstance } from './api';
 
 const STORAGE_KEY = 'odio-instances';
@@ -108,7 +108,7 @@ class AppState {
 		this.currentView = 'list';
 	}
 
-	connectOne(id: string): void {
+	connectOne(id: string, extra?: SSEExtraCallbacks): void {
 		const inst = this.instances.find((i) => i.id === id);
 		if (!inst) return;
 		inst.status = 'probing';
@@ -133,6 +133,7 @@ class AppState {
 				inst.status = 'offline';
 				saveInstances(this.instances);
 			},
+			extra,
 		);
 		this.sseCleanup.set(id, cleanup);
 	}

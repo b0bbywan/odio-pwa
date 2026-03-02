@@ -425,3 +425,53 @@ button {
 		gap: 16px;
 	}
 }
+
+/* Power event modal */
+
+.power-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.65);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 50;
+}
+
+.power-modal {
+	background: var(--bg-secondary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 28px 24px;
+	max-width: 320px;
+	width: 90%;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.power-modal-icon {
+	color: var(--warning);
+}
+
+.power-modal-title {
+	font-size: 1.1rem;
+	font-weight: 700;
+	color: var(--text-primary);
+}
+
+.power-modal-body {
+	font-size: 0.9rem;
+	color: var(--text-secondary);
+	line-height: 1.5;
+}
+
+.power-modal-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+}
