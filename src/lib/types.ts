@@ -9,6 +9,7 @@ export interface OdioServerInfo {
 		pulseaudio: boolean;
 		systemd: boolean;
 		zeroconf: boolean;
+		power?: boolean;
 	};
 }
 
@@ -19,6 +20,7 @@ export interface OdioInstance {
 	label?: string;
 	serverInfo?: OdioServerInfo | null;
 	status: 'unknown' | 'online' | 'offline' | 'probing';
+	connectedAt?: number;
 }
 
 export type AppView = 'list' | 'instance';
