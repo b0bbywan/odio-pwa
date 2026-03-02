@@ -94,11 +94,9 @@ The status probe (`fetch /server`) is a cross-origin request. Your odio-api inst
 Access-Control-Allow-Origin: *
 ```
 
+For those using https://odio-pwa.vercel.app, odio-api already support the appropriate header
+
 The iframe loading `/ui` does **not** require CORS headers.
-
-### HTTP only
-
-This app is designed for trusted local networks. It communicates with odio-api over plain HTTP. If the PWA is served over HTTPS, browsers will block the iframe and fetch calls to HTTP endpoints (mixed content). Serve the app over HTTP or from `localhost`.
 
 ### PWA
 
