@@ -34,14 +34,14 @@ function saveInstances(instances: OdioInstance[]): void {
 }
 
 // Sort: power-backend instances first, then by most recently connected
-function byPriority(a: OdioInstance, b: OdioInstance): number {
+export function byPriority(a: OdioInstance, b: OdioInstance): number {
 	const aPower = a.serverInfo?.backends.power ? 1 : 0;
 	const bPower = b.serverInfo?.backends.power ? 1 : 0;
 	if (bPower !== aPower) return bPower - aPower;
 	return (b.connectedAt ?? 0) - (a.connectedAt ?? 0);
 }
 
-class AppState {
+export class AppState {
 	instances: OdioInstance[] = $state(loadInstances());
 	currentView: AppView = $state('list');
 	activeInstanceId: string | null = $state(null);
