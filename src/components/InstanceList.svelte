@@ -7,7 +7,14 @@
 
 	$effect(() => {
 		appState.connectAll();
-		return () => appState.disconnectAll();
+		function onVisible() {
+			if (document.visibilityState === 'visible') appState.probeAll();
+		}
+		document.addEventListener('visibilitychange', onVisible);
+		return () => {
+			appState.disconnectAll();
+			document.removeEventListener('visibilitychange', onVisible);
+		};
 	});
 </script>
 
