@@ -79,13 +79,15 @@ export function createConnection(
 
 	// Called when the SSE connection drops or errors.
 	// If SSE never opened, the endpoint is not supported → switch to probe-only.
+	// In that case the probe already succeeded so keep status 'online'.
 	function onSSEDisconnect() {
+		const wasOpen = sseEverOpened;
 		if (!sseEverOpened) {
 			effectiveUseSSE = false;
 		}
 		closeSSE?.();
 		closeSSE = null;
-		if (!destroyed) callbacks.onStatus('offline');
+		if (wasOpen && !destroyed) callbacks.onStatus('offline');
 		scheduleRetry();
 	}
 

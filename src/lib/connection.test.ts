@@ -167,7 +167,8 @@ describe('createConnection — SSE disconnect', () => {
 		const cb = makeCallbacks();
 		createConnection('h', 8080, cb);
 		await flush();
-		const { onOffline, cleanup } = capturedSSE!;
+		const { onOpen, onOffline, cleanup } = capturedSSE!;
+		await onOpen(); // SSE was open before dropping
 		onOffline();
 		expect(cleanup).toHaveBeenCalledOnce();
 		expect(cb.onStatus).toHaveBeenCalledWith('offline');
@@ -207,7 +208,8 @@ describe('createConnection — SSE unsupported', () => {
 		createConnection('h', 8080, cb);
 		await drainMicrotasks(); // probe ok → SSE opened → immediately errors (no onOpen)
 		capturedSSE!.onOffline(); // SSE error before onOpen → not supported
-		expect(cb.onStatus).toHaveBeenCalledWith('offline');
+		// Probe already succeeded → status stays 'online', no red flash
+		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
 		// After backoff, retries as probe-only (no new SSE)
 		await vi.advanceTimersByTimeAsync(1_000);
 		expect(connectSSE).toHaveBeenCalledOnce(); // no second SSE attempt
