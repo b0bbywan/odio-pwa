@@ -123,6 +123,16 @@ describe('InstanceView — poweroff', () => {
 		expect(appState.goToList).toHaveBeenCalledOnce();
 	});
 
+	test('dismiss button calls history.back()', async () => {
+		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+		render(InstanceView);
+		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
+		const powerScreen = document.querySelector('.power-screen')!;
+		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
+		expect(back).toHaveBeenCalledOnce();
+		back.mockRestore();
+	});
+
 	test('clicking Wait switches to waiting spinner', async () => {
 		render(InstanceView);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));

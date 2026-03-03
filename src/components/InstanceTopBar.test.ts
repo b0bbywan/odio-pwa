@@ -40,6 +40,14 @@ describe('InstanceTopBar — display', () => {
 		await fireEvent.click(screen.getByTitle('Back to list'));
 		expect(appState.goToList).toHaveBeenCalledOnce();
 	});
+
+	test('back button calls history.back()', async () => {
+		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(back).toHaveBeenCalledOnce();
+		back.mockRestore();
+	});
 });
 
 // ── switcher hidden ───────────────────────────────────────────────────────────
