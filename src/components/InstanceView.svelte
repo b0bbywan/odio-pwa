@@ -50,6 +50,7 @@
 	function dismiss() {
 		powerEvent = null;
 		waiting = false;
+		history.back();
 		appState.goToList();
 	}
 

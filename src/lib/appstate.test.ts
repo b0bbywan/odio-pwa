@@ -197,6 +197,26 @@ describe('openInstance / goToList', () => {
 		s.addInstance('192.168.1.1', 8080);
 		expect(s.activeInstance).toBeUndefined();
 	});
+
+	test('pushes a history entry when navigating list → instance', () => {
+		const push = vi.spyOn(history, 'pushState');
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		s.openInstance(s.instances[0].id);
+		expect(push).toHaveBeenCalledOnce();
+		push.mockRestore();
+	});
+
+	test('replaces history entry when switching instance → instance', () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		s.addInstance('192.168.1.2', 8080);
+		s.openInstance(s.instances[0].id); // list → instance
+		const replace = vi.spyOn(history, 'replaceState');
+		s.openInstance(s.instances[1].id); // instance → instance
+		expect(replace).toHaveBeenCalledOnce();
+		replace.mockRestore();
+	});
 });
 
 // ─── Connection lifecycle ────────────────────────────────────────────────────

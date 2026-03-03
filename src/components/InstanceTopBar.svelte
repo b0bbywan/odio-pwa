@@ -20,7 +20,7 @@
 </script>
 
 <nav class="top-bar">
-	<button class="btn-icon" onclick={() => appState.goToList()} title="Back to list">
+	<button class="btn-icon" onclick={() => { history.back(); appState.goToList(); }} title="Back to list">
 		<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
 			<polyline points="15 18 9 12 15 6" />
 		</svg>

@@ -103,6 +103,11 @@ export class AppState {
 	}
 
 	openInstance(id: string): void {
+		if (this.currentView === 'instance') {
+			history.replaceState(null, ''); // switching instance → no extra history entry
+		} else {
+			history.pushState(null, ''); // list → instance: push so back returns to list
+		}
 		this.activeInstanceId = id;
 		this.currentView = 'instance';
 	}
