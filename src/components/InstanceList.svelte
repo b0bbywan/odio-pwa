@@ -50,4 +50,6 @@
 			<button class="btn-add" onclick={() => (showAddForm = true)}> + Add Instance </button>
 		{/if}
 	</section>
+
+	<p class="app-version">v{__APP_VERSION__}</p>
 </main>
