@@ -136,6 +136,14 @@ button {
 	letter-spacing: -0.02em;
 }
 
+.app-version {
+	text-align: center;
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	opacity: 0.5;
+	margin-top: 16px;
+}
+
 .empty-state {
 	text-align: center;
 	padding: 48px 16px;
