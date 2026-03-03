@@ -7,7 +7,9 @@ Manage multiple odio-api endpoints from a single interface — add instances man
 ## Features
 
 - **Instance management** — add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage
-- **Status probing** — automatic health check via `/server` endpoint with 3s timeout
+- **Real-time status** — live updates via SSE (`/events`), up to 6 concurrent connections; additional instances fall back to HTTP polling every 30 s
+- **Smart reconnect** — exponential backoff on connection loss (1 s → 30 s cap); gives up after 90 s of consecutive failures
+- **Power event handling** — reboot shows a waiting screen and auto-reloads when the server comes back; poweroff offers to wait or go back to the list immediately; servers without SSE support are detected automatically and use polling only
 - **Embedded UI** — loads each instance's `/ui` in a full-screen iframe
 - **Quick switch** — compact top bar with dropdown to jump between online instances
 - **PWA** — installable, offline-capable app shell, service worker caching
@@ -49,13 +51,17 @@ src/
 ├── lib/
 │   ├── types.ts            # OdioServerInfo, OdioInstance, AppView
 │   ├── api.ts              # probeInstance(), getInstanceUiUrl()
+│   ├── sse.ts              # connectSSE() — thin EventSource wrapper
+│   ├── connection.ts       # createConnection() — backoff, give-up, SSE/polling
 │   └── state.svelte.ts     # Reactive state (Svelte 5 runes, class pattern)
 ├── components/
-│   ├── InstanceList.svelte  # Discovery screen with card grid
-│   ├── InstanceCard.svelte  # Status indicator, server info, actions
+│   ├── InstanceList.svelte    # Discovery screen with card grid
+│   ├── InstanceCard.svelte    # Status indicator, server info, actions
 │   ├── AddInstanceForm.svelte # Add/edit form (host, port, label)
-│   ├── InstanceView.svelte  # Iframe embed + navigation bar + switcher
-│   └── ReloadPrompt.svelte  # PWA update toast
+│   ├── InstanceTopBar.svelte  # Navigation bar with instance switcher
+│   ├── PowerScreen.svelte     # Full-screen reboot/poweroff state display
+│   ├── InstanceView.svelte    # Iframe embed, power event orchestration
+│   └── ReloadPrompt.svelte    # PWA update toast
 ├── App.svelte               # View routing (list ↔ instance)
 ├── app.css                  # Global styles, dark theme
 └── main.ts                  # App bootstrap
@@ -66,6 +72,13 @@ src/
 - [Svelte 5](https://svelte.dev/) with runes (`$state`, `$derived`, `$effect`)
 - [Vite](https://vite.dev/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) with Workbox
+- [Vitest](https://vitest.dev/) + [@testing-library/svelte](https://testing-library.com/docs/svelte-testing-library/intro) for unit and component tests
+
+Run tests:
+
+```bash
+npm run test
+```
 
 ## Build & Preview
 
@@ -86,9 +99,13 @@ The production build outputs to `dist/`. The preview server serves it at `http:/
 
 ## Technical notes
 
+### SSE support
+
+odio-pwa uses Server-Sent Events (`/events`) for real-time status updates when the odio-api version supports it. If the endpoint is not available (404 or connection error before the stream opens), the app automatically falls back to HTTP polling every 30 s — no configuration required.
+
 ### CORS
 
-The status probe (`fetch /server`) is a cross-origin request. Your odio-api instances must respond with:
+The status probe (`fetch /server`) and the SSE stream (`fetch /events`) are cross-origin requests. Your odio-api instances must respond with:
 
 ```
 Access-Control-Allow-Origin: *
