@@ -253,7 +253,8 @@ describe('connectOne / disconnectOne', () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		await flushPromises();
-		const { cleanup, onOffline } = lastSSE();
+		const { cleanup, onOpen, onOffline } = lastSSE();
+		await onOpen(); // SSE was open before dropping
 		onOffline();
 		expect(cleanup).toHaveBeenCalledOnce(); // SSE torn down
 		expect(s.instances[0].status).toBe('offline');
@@ -376,11 +377,11 @@ describe('onAlive callback', () => {
 });
 
 describe('onOffline callback', () => {
-	test('sets status to offline', async () => {
+	test('sets status to offline when SSE was open', async () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		await flushPromises();
-		s.instances[0].status = 'online';
+		await lastSSE().onOpen(); // SSE was open before dropping
 		lastSSE().onOffline();
 		expect(s.instances[0].status).toBe('offline');
 	});
