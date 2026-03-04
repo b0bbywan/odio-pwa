@@ -133,6 +133,17 @@ describe('InstanceView — poweroff', () => {
 		back.mockRestore();
 	});
 
+	test('clicking Wait restarts the connection', async () => {
+		render(InstanceView);
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
+		expect(appState.connectOne).toHaveBeenCalledTimes(2); // mount + restart
+		expect(appState.connectOne).toHaveBeenLastCalledWith('1', {
+			onPowerAction: expect.any(Function),
+			onGiveUp: expect.any(Function),
+		});
+	});
+
 	test('clicking Wait switches to waiting spinner', async () => {
 		render(InstanceView);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));

@@ -45,6 +45,10 @@
 
 	function startWaiting() {
 		waiting = true;
+		// Restart retries — give-up may have stopped them (common on mobile after backgrounding)
+		if (currentSSEId !== null) {
+			appState.connectOne(currentSSEId, { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp });
+		}
 	}
 
 	function dismiss() {

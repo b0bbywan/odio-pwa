@@ -229,6 +229,47 @@ describe('createConnection — SSE unsupported', () => {
 	});
 });
 
+// ── visibility change ─────────────────────────────────────────────────────────
+
+describe('createConnection — visibility change', () => {
+	test('fires pending retry immediately when page becomes visible', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe fails → retry timer scheduled
+		vi.mocked(probeInstance).mockResolvedValue(mockInfo);
+		document.dispatchEvent(new Event('visibilitychange')); // simulates coming to foreground
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenCalledWith('online');
+	});
+
+	test('does nothing when no retry is pending', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe ok → SSE opened, no retry timer
+		cb.onStatus.mockClear();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).not.toHaveBeenCalled();
+	});
+
+	test('destroy removes the listener', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		const cb = makeCallbacks();
+		const destroy = createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe fails → retry timer scheduled
+		destroy();
+		cb.onStatus.mockClear();
+		vi.mocked(probeInstance).mockResolvedValue(mockInfo);
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).not.toHaveBeenCalled(); // destroyed connection ignores visibilitychange
+	});
+});
+
 // ── probe-only mode ───────────────────────────────────────────────────────────
 
 describe('createConnection — useSSE: false', () => {

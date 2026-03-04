@@ -44,8 +44,18 @@ export function createConnection(
 	let sseEverOpened = false;
 	let effectiveUseSSE = options.useSSE ?? true;
 
+	function onVisibilityChange() {
+		if (document.visibilityState === 'visible' && retryTimer !== null) {
+			clearTimeout(retryTimer);
+			retryTimer = null;
+			attempt();
+		}
+	}
+	document.addEventListener('visibilitychange', onVisibilityChange);
+
 	function destroy() {
 		destroyed = true;
+		document.removeEventListener('visibilitychange', onVisibilityChange);
 		if (retryTimer !== null) {
 			clearTimeout(retryTimer);
 			retryTimer = null;
