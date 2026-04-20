@@ -136,12 +136,27 @@ button {
 	letter-spacing: -0.02em;
 }
 
-.app-version {
+.app-footer {
 	text-align: center;
 	font-size: 0.75rem;
+	margin-top: 16px;
+}
+
+.app-version {
 	color: var(--text-muted);
 	opacity: 0.5;
-	margin-top: 16px;
+}
+
+.update-badge {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 6px;
+	color: var(--accent);
+	vertical-align: middle;
+}
+
+.update-badge:hover {
+	opacity: 0.7;
 }
 
 .empty-state {

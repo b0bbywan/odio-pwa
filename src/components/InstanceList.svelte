@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appState } from '../lib/state.svelte';
+	import { fetchLatestRelease, type ReleaseInfo } from '../lib/github';
 	import InstanceCard from './InstanceCard.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 
 	let showAddForm = $state(false);
+	let update = $state<ReleaseInfo | null>(null);
 
 	onMount(() => {
 		appState.connectAll();
@@ -12,6 +14,11 @@
 			if (document.visibilityState === 'visible') appState.probeAll();
 		}
 		document.addEventListener('visibilitychange', onVisible);
+
+		fetchLatestRelease(__APP_VERSION__).then((latest) => {
+			if (latest) update = latest;
+		});
+
 		return () => {
 			appState.disconnectAll();
 			document.removeEventListener('visibilitychange', onVisible);
@@ -51,5 +58,22 @@
 		{/if}
 	</section>
 
-	<p class="app-version">v{__APP_VERSION__}</p>
+	<footer class="app-footer">
+		<span class="app-version">v{__APP_VERSION__}</span>
+		{#if update}
+			<a
+				class="update-badge"
+				href={update.url}
+				target="_blank"
+				rel="noopener noreferrer"
+				title="v{update.version} available — click for release notes"
+				aria-label="v{update.version} available — click for release notes"
+			>
+				<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="12" y1="19" x2="12" y2="5" />
+					<polyline points="5 12 12 5 19 12" />
+				</svg>
+			</a>
+		{/if}
+	</footer>
 </main>
