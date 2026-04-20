@@ -1,6 +1,6 @@
 const REPO = 'b0bbywan/odio-pwa';
-const CACHE_KEY = 'odio-latest-release';
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const INCLUDE_PRERELEASE_KEY = 'odio-include-prereleases';
 
 export type ReleaseInfo = {
 	version: string;
@@ -12,21 +12,43 @@ type CacheEntry = {
 	latest: ReleaseInfo | null;
 };
 
+// Toggle via devtools: `localStorage.setItem('odio-include-prereleases', 'true')`
+function includePrerelease(): boolean {
+	try {
+		return localStorage.getItem(INCLUDE_PRERELEASE_KEY) === 'true';
+	} catch {
+		return false;
+	}
+}
+
+function cacheKey(): string {
+	return includePrerelease() ? 'odio-latest-release-pre' : 'odio-latest-release';
+}
+
+async function fetchFromApi(): Promise<ReleaseInfo | null> {
+	const url = includePrerelease()
+		? `https://api.github.com/repos/${REPO}/releases?per_page=1`
+		: `https://api.github.com/repos/${REPO}/releases/latest`;
+	const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+	if (!res.ok) return null;
+	const data = (await res.json()) as
+		| { tag_name: string; html_url: string }
+		| Array<{ tag_name: string; html_url: string }>;
+	const entry = Array.isArray(data) ? data[0] : data;
+	if (!entry) return null;
+	return {
+		version: entry.tag_name.replace(/^v/, ''),
+		url: entry.html_url,
+	};
+}
+
 export async function fetchLatestRelease(current: string): Promise<ReleaseInfo | null> {
 	const cached = readCache(current);
 	if (cached) return cached.latest;
 
 	try {
-		const res = await fetch(
-			`https://api.github.com/repos/${REPO}/releases/latest`,
-			{ headers: { Accept: 'application/vnd.github+json' } },
-		);
-		if (!res.ok) return null;
-		const data = (await res.json()) as { tag_name: string; html_url: string };
-		const latest: ReleaseInfo = {
-			version: data.tag_name.replace(/^v/, ''),
-			url: data.html_url,
-		};
+		const latest = await fetchFromApi();
+		if (!latest) return null;
 		if (isNewerVersion(latest.version, current)) {
 			writeCache({ checkedAt: Date.now(), latest });
 			return latest;
@@ -39,12 +61,13 @@ export async function fetchLatestRelease(current: string): Promise<ReleaseInfo |
 }
 
 function readCache(current: string): CacheEntry | null {
+	const key = cacheKey();
 	try {
-		const raw = localStorage.getItem(CACHE_KEY);
+		const raw = localStorage.getItem(key);
 		if (!raw) return null;
 		const parsed = JSON.parse(raw) as CacheEntry;
 		if (Date.now() - parsed.checkedAt > CACHE_TTL_MS) {
-			localStorage.removeItem(CACHE_KEY);
+			localStorage.removeItem(key);
 			return null;
 		}
 		if (parsed.latest && !isNewerVersion(parsed.latest.version, current)) {
@@ -62,7 +85,7 @@ function readCache(current: string): CacheEntry | null {
 
 function writeCache(entry: CacheEntry): void {
 	try {
-		localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+		localStorage.setItem(cacheKey(), JSON.stringify(entry));
 	} catch {
 		// quota exceeded or disabled — ignore
 	}
