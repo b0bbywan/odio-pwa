@@ -8,6 +8,15 @@
 	let showAddForm = $state(false);
 	let update = $state<ReleaseInfo | null>(null);
 
+	const hostedPwa = location.hostname === 'pwa.odio.love';
+	const updateTooltip = $derived(
+		update
+			? hostedPwa
+				? `v${update.version} available — this PWA updates itself automatically, click for release notes`
+				: `v${update.version} available — click for release notes`
+			: '',
+	);
+
 	onMount(() => {
 		appState.connectAll();
 		function onVisible() {
@@ -66,8 +75,8 @@
 				href={update.url}
 				target="_blank"
 				rel="noopener noreferrer"
-				title="v{update.version} available — click for release notes"
-				aria-label="v{update.version} available — click for release notes"
+				title={updateTooltip}
+				aria-label={updateTooltip}
 			>
 				<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 					<line x1="12" y1="19" x2="12" y2="5" />

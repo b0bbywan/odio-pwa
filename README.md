@@ -149,6 +149,16 @@ The PWA makes **HTTP** calls to your odio-api instances on the LAN. When the PWA
 
 Serving the PWA over plain HTTP on the LAN avoids all of this.
 
+### Update indicator
+
+The app checks GitHub for a newer stable release and shows an arrow next to the version when one is available. By default prereleases are ignored. To also surface prereleases (useful when testing an RC image), run this in the browser devtools:
+
+```js
+localStorage.setItem('odio-include-prereleases', 'true'); location.reload();
+```
+
+To revert: `localStorage.removeItem('odio-include-prereleases'); location.reload()`.
+
 ## License
 
 [BSD-2-Clause](LICENSE)
