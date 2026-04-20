@@ -119,6 +119,30 @@ The iframe loading `/ui` does **not** require CORS headers.
 
 The service worker caches only the app shell (HTML, CSS, JS, icons). It does not cache cross-origin requests to odio-api instances. The app is installable on supported browsers and works offline (showing the cached instance list — instances will appear as offline until the network is available).
 
+## Self-hosting
+
+A Docker image is published to GHCR for each `v*` tag, alongside a zip of the static build attached to the GitHub Release.
+
+### Docker (recommended)
+
+```bash
+docker run -d -p 8080:80 --restart unless-stopped \
+  --name odio-pwa ghcr.io/b0bbywan/odio-pwa:latest
+```
+
+The image is multi-arch (`linux/amd64`, `linux/arm64`) and ships an nginx configured for SPA routing and PWA cache headers.
+
+### Static zip
+
+Download `odio-pwa-<version>.zip` from the [Releases](https://github.com/b0bbywan/odio-pwa/releases) page and serve the extracted files with any static web server. Make sure to:
+
+- rewrite unknown routes to `/index.html` (SPA fallback)
+- serve `/index.html`, `/sw.js`, `/registerSW.js` with `Cache-Control: no-cache` so PWA updates propagate
+
+### HTTPS and mixed content
+
+The PWA makes **HTTP** calls to your odio-api instances on the LAN. If you serve the PWA over HTTPS from the public internet, browsers will block those calls (mixed content). Self-hosting is designed for LAN / HTTP, or behind a reverse proxy that stays HTTP from the client's perspective.
+
 ## License
 
 [BSD-2-Clause](LICENSE)
