@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
-import { version } from './package.json';
+import { version as pkgVersion } from './package.json';
+
+const appVersion = process.env.APP_VERSION ?? pkgVersion;
 
 export default defineConfig({
 	define: {
-		__APP_VERSION__: JSON.stringify(version),
+		__APP_VERSION__: JSON.stringify(appVersion),
 	},
 	plugins: [
 		svelte(),

@@ -119,6 +119,36 @@ The iframe loading `/ui` does **not** require CORS headers.
 
 The service worker caches only the app shell (HTML, CSS, JS, icons). It does not cache cross-origin requests to odio-api instances. The app is installable on supported browsers and works offline (showing the cached instance list — instances will appear as offline until the network is available).
 
+## Self-hosting
+
+A Docker image is published to GHCR for each `v*` tag, alongside a zip of the static build attached to the GitHub Release.
+
+### Docker (recommended)
+
+```bash
+docker run -d -p 8080:80 --restart unless-stopped \
+  --name odio-pwa ghcr.io/b0bbywan/odio-pwa:latest
+```
+
+The image is multi-arch (`linux/amd64`, `linux/arm64`) and ships an nginx configured for SPA routing and PWA cache headers.
+
+### Static zip
+
+Download `odio-pwa-<version>.zip` from the [Releases](https://github.com/b0bbywan/odio-pwa/releases) page and serve the extracted files with any static web server. Make sure to:
+
+- rewrite unknown routes to `/index.html` (SPA fallback)
+- serve `/index.html`, `/sw.js`, `/registerSW.js` with `Cache-Control: no-cache` so PWA updates propagate
+
+### HTTPS and mixed content
+
+The PWA makes **HTTP** calls to your odio-api instances on the LAN. When the PWA itself is served over HTTPS (e.g. behind a public reverse proxy), behavior varies by browser:
+
+- **Chrome 142+** shows a [Local Network Access](https://developer.chrome.com/blog/local-network-access) permission prompt on the first HTTP LAN call; granting it bypasses the mixed-content block for private IPs, `.local` domains, and loopback.
+- **Safari** (iOS/macOS) blocks mixed-content fetches strictly — [no LAN exemption in WebKit](https://bugs.webkit.org/show_bug.cgi?id=171934).
+- **Firefox** exempts `localhost` / `.localhost`, but private IPs are still blocked ([MDN: Mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content)).
+
+Serving the PWA over plain HTTP on the LAN avoids all of this.
+
 ## License
 
 [BSD-2-Clause](LICENSE)
