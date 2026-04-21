@@ -1,4 +1,36 @@
-# odio-pwa
+  <p align="center">
+    <a href="https://odio.love">                                                                                                                                      
+      <img src="https://odio.love/logo.png" alt="odio" width="160" />
+    </a>
+  </p>
+  <h1 align="center">odio-pwa</h1>
+  <p align="center"><em>Progressive web app to manage all your odio instances from one place.</em></p>
+  <p align="center">                                                                                                                                                                                       
+    <a href="https://github.com/b0bbywan/odio-pwa/releases"><img src="https://img.shields.io/github/v/release/b0bbywan/odio-pwa?include_prereleases" alt="Release" /></a>
+    <a href="https://github.com/b0bbywan/odio-pwa/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-BSD--2--Clause-blue" alt="License" /></a>
+    <a href="https://github.com/b0bbywan/odio-pwa/actions/workflows/ci.yml"><img src="https://github.com/b0bbywan/odio-pwa/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/sponsors/b0bbywan"><img src="https://img.shields.io/github/sponsors/b0bbywan?label=Sponsor&logo=GitHub" alt="GitHub Sponsors" /></a>
+  </p>
+  <p align="center">
+    <a href="https://pwa.odio.love"><img src="https://img.shields.io/badge/Live%20app-5ab81e" alt="Live at pwa.odio.love" /></a>
+    <a href="https://docs.odio.love/guides/pwa/#multiple-nodes"><img src="https://img.shields.io/badge/Multi--node-5B21B6" alt="Multi-node" /></a>
+    <a href="https://docs.odio.love/guides/pwa/#installation"><img src="https://img.shields.io/badge/PWA%20install-BC52EE" alt="PWA install" /></a>
+    <a href="https://docs.odio.love/guides/pwa/#other-setups"><img src="https://img.shields.io/badge/Self--host-334155" alt="Self-host" /></a>
+    <a href="https://docs.odio.love/guides/embedded-ui/"><img src="https://img.shields.io/badge/Embedded%20UI-F18D00" alt="Embedded UI" /></a>   
+  </p>
+  <p align="center">
+    Part of the <a href="https://odio.love">odio</a> project — <a href="https://docs.odio.love/guides/pwa/">full documentation</a>.
+  </p>
+  <p align="center">
+    <a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&logoColor=white" alt="Svelte" /></a>
+    <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" /></a>
+    <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white" alt="Vite" /></a>
+    <a href="https://github.com/features/actions"><img src="https://img.shields.io/badge/GitHub%20Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions" /></a>
+    <a href="https://vercel.com/"><img src="https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white" alt="Vercel" /></a>
+    <a href="https://github.com/b0bbywan/odio-pwa/pkgs/container/odio-pwa"><img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker" /></a>       
+  </p>   
+  
+  # odio-pwa
 
 Progressive Web App for discovering and controlling [odio-api](https://github.com/b0bbywan/go-odio-api) instances on your local network.
 
