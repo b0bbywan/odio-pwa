@@ -37,7 +37,10 @@
 
 <main class="instance-list">
 	<header class="list-header">
-		<h1>Odio</h1>
+		<div class="brand">
+			<img src="/logo.png" alt="" class="brand-logo" width="44" height="44" />
+			<h1>odio</h1>
+		</div>
 		<button class="btn-icon" onclick={() => appState.probeAll()} title="Refresh all">
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
 				<polyline points="23 4 23 10 17 10" />
