@@ -64,6 +64,39 @@ describe('InstanceCard — status class', () => {
 		render(InstanceCard, { instance: { ...base, status: 'probing' } });
 		expect(screen.getByRole('article')).toHaveClass('status-probing');
 	});
+
+	test('blocked → status-blocked', () => {
+		render(InstanceCard, { instance: { ...base, status: 'blocked' } });
+		expect(screen.getByRole('article')).toHaveClass('status-blocked');
+	});
+});
+
+// ── status message ────────────────────────────────────────────────────────────
+
+describe('InstanceCard — status message', () => {
+	test('cors links "CORS headers" to the docs', () => {
+		render(InstanceCard, { instance: { ...base, status: 'cors' } });
+		const link = screen.getByRole('link', { name: 'CORS headers' });
+		expect(link).toHaveAttribute('href', 'https://docs.odio.love/guides/pwa/#cors-on-each-node');
+	});
+
+	test('blocked links "mixed content" to the docs', () => {
+		render(InstanceCard, { instance: { ...base, status: 'blocked' } });
+		const link = screen.getByRole('link', { name: 'mixed content' });
+		expect(link).toHaveAttribute('href', 'https://docs.odio.love/guides/pwa/#lan-access');
+	});
+
+	test('offline shows "Server unreachable"', () => {
+		render(InstanceCard, { instance: { ...base, status: 'offline' } });
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+	});
+
+	test('online shows no status message', () => {
+		render(InstanceCard, { instance: { ...base, status: 'online' } });
+		expect(screen.queryByText('Server unreachable')).not.toBeInTheDocument();
+		expect(screen.queryByText(/blocked/i)).not.toBeInTheDocument();
+		expect(screen.queryByText(/CORS/i)).not.toBeInTheDocument();
+	});
 });
 
 // ── server info line ──────────────────────────────────────────────────────────

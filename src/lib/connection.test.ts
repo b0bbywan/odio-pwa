@@ -1,11 +1,11 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createConnection, GIVE_UP_AFTER_MS } from './connection';
+import { createConnection, classifyProbeFailure, GIVE_UP_AFTER_MS } from './connection';
 
 vi.mock('./sse', () => ({ connectSSE: vi.fn() }));
-vi.mock('./api', () => ({ probeInstance: vi.fn() }));
+vi.mock('./api', () => ({ probeInstance: vi.fn(), probeReachable: vi.fn() }));
 
 import { connectSSE } from './sse';
-import { probeInstance } from './api';
+import { probeInstance, probeReachable } from './api';
 
 const mockInfo = {
 	hostname: 'raspi',
@@ -106,6 +106,36 @@ describe('createConnection — probe failure', () => {
 		await flush();
 		expect(cb.onStatus).toHaveBeenCalledWith('offline');
 		expect(connectSSE).not.toHaveBeenCalled();
+	});
+
+	test('classifyProbeFailure: TypeError + reachable → cors (server up, no headers)', async () => {
+		vi.mocked(probeReachable).mockResolvedValue(true);
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'https:')).toBe('cors');
+	});
+
+	test('classifyProbeFailure: TypeError + unreachable + HTTPS → blocked (mixed content)', async () => {
+		vi.mocked(probeReachable).mockResolvedValue(false);
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'https:')).toBe('blocked');
+	});
+
+	test('classifyProbeFailure: TypeError + unreachable + HTTP → offline', async () => {
+		vi.mocked(probeReachable).mockResolvedValue(false);
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'http:')).toBe('offline');
+	});
+
+	test('classifyProbeFailure: plain Error → offline without re-probing', async () => {
+		const reachable = vi.mocked(probeReachable);
+		reachable.mockClear();
+		expect(await classifyProbeFailure(new Error('HTTP 503'), 'h', 8080, 'https:')).toBe('offline');
+		expect(reachable).not.toHaveBeenCalled();
+	});
+
+	test('classifyProbeFailure: AbortError → offline without re-probing', async () => {
+		const reachable = vi.mocked(probeReachable);
+		reachable.mockClear();
+		const abortErr = Object.assign(new Error('aborted'), { name: 'AbortError' });
+		expect(await classifyProbeFailure(abortErr, 'h', 8080, 'https:')).toBe('offline');
+		expect(reachable).not.toHaveBeenCalled();
 	});
 
 	test('retries after backoff on probe failure', async () => {

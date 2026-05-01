@@ -268,6 +268,11 @@ button {
 	border-left: 3px solid var(--warning);
 }
 
+.instance-card.status-blocked,
+.instance-card.status-cors {
+	border-left: 3px solid var(--warning);
+}
+
 .instance-card.status-unknown {
 	border-left: 3px solid var(--text-muted);
 }
@@ -305,6 +310,11 @@ button {
 	animation: pulse 1s ease-in-out infinite;
 }
 
+.status-blocked .status-dot,
+.status-cors .status-dot {
+	background: var(--warning);
+}
+
 .status-unknown .status-dot {
 	background: var(--text-muted);
 }
@@ -327,6 +337,20 @@ button {
 .card-address {
 	color: var(--text-muted);
 	margin-bottom: 12px;
+}
+
+.card-status-message {
+	color: var(--danger);
+	margin-bottom: 12px;
+}
+
+.card-status-message.warn {
+	color: var(--warning);
+}
+
+.card-status-message a {
+	color: inherit;
+	text-decoration: underline;
 }
 
 .card-actions {
