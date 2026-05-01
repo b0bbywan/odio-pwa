@@ -1,9 +1,25 @@
+import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { version as pkgVersion } from './package.json';
 
-const appVersion = process.env.APP_VERSION ?? pkgVersion;
+function gitDescribe(): string | null {
+	try {
+		const raw = execSync('git describe --tags', { stdio: ['ignore', 'pipe', 'ignore'] })
+			.toString()
+			.trim();
+		// v0.3.4 → 0.3.4 ; v0.3.4-1-g838e075 → 0.3.4+1.g838e075 (semver build-meta)
+		const m = raw.match(/^v?(\d+\.\d+\.\d+)(?:-(\d+)-g([0-9a-f]+))?$/);
+		if (!m) return null;
+		const [, tag, count, sha] = m;
+		return count ? `${tag}+${count}.g${sha}` : tag;
+	} catch {
+		return null;
+	}
+}
+
+const appVersion = process.env.APP_VERSION ?? gitDescribe() ?? pkgVersion;
 
 export default defineConfig({
 	define: {

@@ -109,7 +109,7 @@ export function isNewerVersion(latest: string, current: string): boolean {
 type ParsedVersion = { major: number; minor: number; patch: number; pre: string | null };
 
 function parseVersion(v: string): ParsedVersion | null {
-	const m = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/);
+	const m = v.match(/^(\d+)\.(\d+)\.(\d+)(?:-([^+]+))?(?:\+.+)?$/);
 	if (!m) return null;
 	return {
 		major: Number(m[1]),
