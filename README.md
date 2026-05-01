@@ -46,6 +46,7 @@ Manage multiple odio-api endpoints from a single interface — add instances man
 - **Quick switch** — compact top bar with dropdown to jump between online instances
 - **PWA** — installable, offline-capable app shell, service worker caching
 - **Dark theme** — responsive layout (single column on mobile, grid on desktop)
+- **In-app diagnostics**: Firefox / Safari desktop on HTTPS get a persistent banner and a disabled "+ Add Instance" button; instance cards distinguish *Server unreachable*, *Server reachable: missing CORS headers*, and *Browser blocked (mixed content)* so the user knows what to fix
 
 ## Prerequisites
 
@@ -180,6 +181,16 @@ The PWA makes **HTTP** calls to your odio-api instances on the LAN. When the PWA
 - **Firefox** exempts `localhost` / `.localhost`, but private IPs are still blocked ([MDN: Mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Mixed_content)).
 
 Serving the PWA over plain HTTP on the LAN avoids all of this.
+
+#### In-app feedback
+
+When the PWA detects Firefox or Safari desktop on an HTTPS context, it shows a persistent banner pointing back at this guide and disables the "+ Add Instance" button (no point in adding nodes that cannot be reached).
+
+When a probe fails for an existing instance, the card distinguishes three cases by re-probing with `mode: 'no-cors'`:
+
+- *Server unreachable* (red): the server is genuinely down, or the request was blocked at the network layer.
+- *Server reachable: missing CORS headers* (amber): the request round-tripped but the response lacks `Access-Control-Allow-Origin`. Add the PWA's origin to the node's `api.cors.origins`.
+- *Browser blocked (mixed content)* (amber): both the regular and `no-cors` probes failed on an HTTPS PWA, so a browser-level block is the most likely cause.
 
 ### Update indicator
 
