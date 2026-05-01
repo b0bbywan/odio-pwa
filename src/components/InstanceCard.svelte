@@ -17,7 +17,20 @@
 				? 'status-offline'
 				: instance.status === 'probing'
 					? 'status-probing'
-					: 'status-unknown',
+					: instance.status === 'blocked'
+						? 'status-blocked'
+						: instance.status === 'cors'
+							? 'status-cors'
+							: 'status-unknown',
+	);
+
+	const corsDocsHref = 'https://docs.odio.love/guides/pwa/#cors-on-each-node';
+	const lanDocsHref = 'https://docs.odio.love/guides/pwa/#lan-access';
+
+	const hasStatusMessage = $derived(
+		instance.status === 'cors' ||
+			instance.status === 'blocked' ||
+			instance.status === 'offline',
 	);
 </script>
 
@@ -42,6 +55,25 @@
 		<div class="card-address">
 			<small>{instance.host}:{instance.port}</small>
 		</div>
+
+		{#if hasStatusMessage}
+			<div
+				class="card-status-message"
+				class:warn={instance.status === 'blocked' || instance.status === 'cors'}
+			>
+				<small>
+					{#if instance.status === 'cors'}
+						Server reachable: missing
+						<a href={corsDocsHref} target="_blank" rel="noopener noreferrer">CORS headers</a>
+					{:else if instance.status === 'blocked'}
+						Browser blocked
+						(<a href={lanDocsHref} target="_blank" rel="noopener noreferrer">mixed content</a>)
+					{:else if instance.status === 'offline'}
+						Server unreachable
+					{/if}
+				</small>
+			</div>
+		{/if}
 
 		<div class="card-actions">
 			<button

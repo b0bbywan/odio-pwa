@@ -19,7 +19,7 @@ export interface OdioInstance {
 	port: number;
 	label?: string;
 	serverInfo?: OdioServerInfo | null;
-	status: 'unknown' | 'online' | 'offline' | 'probing';
+	status: 'unknown' | 'online' | 'offline' | 'probing' | 'blocked' | 'cors';
 	connectedAt?: number;
 }
 

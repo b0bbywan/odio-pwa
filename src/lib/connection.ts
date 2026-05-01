@@ -1,16 +1,38 @@
 import type { OdioServerInfo } from './types';
 import { connectSSE } from './sse';
-import { probeInstance } from './api';
+import { probeInstance, probeReachable } from './api';
 
 const BACKOFF_INITIAL_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
 export const GIVE_UP_AFTER_MS = 90_000;
 
 export interface ConnectionCallbacks {
-	onStatus(status: 'probing' | 'online' | 'offline'): void;
+	onStatus(status: 'probing' | 'online' | 'offline' | 'blocked' | 'cors'): void;
 	onServerInfo(info: OdioServerInfo): void;
 	onGiveUp(): void;
 	onPowerAction?(action: 'reboot' | 'poweroff'): void;
+}
+
+// fetch() throws TypeError for network-layer failures (mixed-content blocked,
+// CORS rejection, DNS failures, connection refused). HTTP non-OK is rethrown
+// as a plain Error("HTTP X").
+//
+// To tell those apart we re-probe with mode:'no-cors'. That returns an opaque
+// response if the request actually round-tripped — meaning the server is up
+// but missing Access-Control-Allow-Origin. If even no-cors fails, the request
+// was either blocked at the browser layer (mixed content) or the server is
+// genuinely unreachable; we use the page protocol to lean toward 'blocked' on
+// HTTPS and 'offline' on HTTP.
+export async function classifyProbeFailure(
+	err: unknown,
+	host: string,
+	port: number,
+	protocol: string = typeof location !== 'undefined' ? location.protocol : '',
+): Promise<'blocked' | 'cors' | 'offline'> {
+	if (!(err instanceof TypeError)) return 'offline';
+	const reachable = await probeReachable(host, port);
+	if (reachable) return 'cors';
+	return protocol === 'https:' ? 'blocked' : 'offline';
 }
 
 /**
@@ -82,8 +104,9 @@ export function createConnection(
 
 	// Called when the probe itself fails (server unreachable).
 	// Does NOT affect SSE support state.
-	function onProbeFailure() {
-		if (!destroyed) callbacks.onStatus('offline');
+	async function onProbeFailure(err: unknown) {
+		const status = await classifyProbeFailure(err, host, port);
+		if (!destroyed) callbacks.onStatus(status);
 		scheduleRetry();
 	}
 
@@ -109,8 +132,8 @@ export function createConnection(
 		let info: OdioServerInfo;
 		try {
 			info = await probeInstance(host, port);
-		} catch {
-			if (!destroyed) onProbeFailure();
+		} catch (err) {
+			if (!destroyed) onProbeFailure(err);
 			return;
 		}
 		if (destroyed) return;
