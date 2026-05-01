@@ -130,11 +130,25 @@ button {
 	margin-bottom: 24px;
 }
 
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.brand-logo {
+	display: block;
+	width: 44px;
+	height: 44px;
+	flex-shrink: 0;
+}
+
 .list-header h1 {
-	font-size: 1.8rem;
+	font-size: 2.2rem;
 	font-weight: 700;
-	color: var(--accent);
+	color: var(--text-primary);
 	letter-spacing: -0.02em;
+	line-height: 1;
 }
 
 .app-footer {
