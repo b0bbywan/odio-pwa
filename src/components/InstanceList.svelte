@@ -71,21 +71,26 @@
 	</section>
 
 	<footer class="app-footer">
-		<span class="app-version">v{__APP_VERSION__}</span>
-		{#if update}
-			<a
-				class="update-badge"
-				href={update.url}
-				target="_blank"
-				rel="noopener noreferrer"
-				title={updateTooltip}
-				aria-label={updateTooltip}
-			>
-				<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="12" y1="19" x2="12" y2="5" />
-					<polyline points="5 12 12 5 19 12" />
-				</svg>
-			</a>
-		{/if}
+		<a class="docs-link" href="https://docs.odio.love" target="_blank" rel="noopener noreferrer">
+			docs.odio.love
+		</a>
+		<div class="version-row">
+			<span class="app-version">v{__APP_VERSION__}</span>
+			{#if update}
+				<a
+					class="update-badge"
+					href={update.url}
+					target="_blank"
+					rel="noopener noreferrer"
+					title={updateTooltip}
+					aria-label={updateTooltip}
+				>
+					<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<line x1="12" y1="19" x2="12" y2="5" />
+						<polyline points="5 12 12 5 19 12" />
+					</svg>
+				</a>
+			{/if}
+		</div>
 	</footer>
 </main>
