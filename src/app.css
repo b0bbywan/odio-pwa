@@ -1,17 +1,18 @@
 :root {
-	--bg-primary: #0a1f12;
-	--bg-secondary: #0f2e1a;
-	--bg-card: #0d4025;
-	--bg-input: #0c2416;
-	--text-primary: #e8e8e8;
-	--text-secondary: #a0b0a4;
-	--text-muted: #5a7a62;
-	--accent: #22c55e;
-	--accent-hover: #4ade80;
-	--success: #4ade80;
-	--danger: #ef4444;
-	--warning: #fbbf24;
-	--border: #1e4a2d;
+	--bg-primary: #0a100a;        /* odio.love color-bg */
+	--bg-secondary: #111a0e;      /* odio.love color-surface */
+	--bg-card: #1e3a18;           /* odio.love color-border (reused for elevated bg) */
+	--bg-input: #111a0e;          /* odio.love color-surface */
+	--text-primary: #e8e4dc;      /* odio.love color-text */
+	--text-secondary: #72797a;    /* odio.love color-muted */
+	--text-muted: #486040;        /* odio.love color-subtle */
+	--accent: #5ab81e;            /* odio.love color-leaf — bright CTA */
+	--accent-hover: #3a7020;      /* odio.love color-moss — darker hover */
+	--accent-text: #5ab81e;       /* odio.love color-leaf */
+	--success: #5ab81e;           /* odio.love color-leaf */
+	--danger: #ef4444;            /* red-500 (no brand red defined) */
+	--warning: #c8943a;           /* odio.love color-amber */
+	--border: #1e3a18;            /* odio.love color-border */
 	--radius: 8px;
 	--topbar-height: 44px;
 }
@@ -28,6 +29,7 @@ html,
 body {
 	height: 100%;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-weight: 400;
 	background: var(--bg-primary);
 	color: var(--text-primary);
 	-webkit-font-smoothing: antialiased;
@@ -100,7 +102,7 @@ button {
 	width: 100%;
 	padding: 14px;
 	background: transparent;
-	color: var(--accent);
+	color: var(--accent-text);
 	border: 2px dashed var(--border);
 	border-radius: var(--radius);
 	font-size: 1rem;
@@ -109,8 +111,7 @@ button {
 }
 
 .btn-add:hover {
-	border-color: var(--accent);
-	color: var(--accent-hover);
+	border-color: var(--accent-text);
 }
 
 /* Instance List */
@@ -144,14 +145,13 @@ button {
 
 .app-version {
 	color: var(--text-muted);
-	opacity: 0.5;
 }
 
 .update-badge {
 	display: inline-flex;
 	align-items: center;
 	margin-left: 6px;
-	color: var(--accent);
+	color: var(--accent-text);
 	vertical-align: middle;
 }
 
