@@ -110,8 +110,14 @@ button {
 	transition: border-color 0.2s, color 0.2s;
 }
 
-.btn-add:hover {
+.btn-add:hover:not(:disabled) {
 	border-color: var(--accent-text);
+}
+
+.btn-add:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+	color: var(--text-muted);
 }
 
 /* Instance List */
@@ -189,6 +195,34 @@ button {
 
 .update-badge:hover {
 	opacity: 0.7;
+}
+
+.warning-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	background: var(--bg-secondary);
+	border: 1px solid var(--warning);
+	border-radius: var(--radius);
+	padding: 12px 14px;
+	margin-bottom: 16px;
+	font-size: 0.875rem;
+	color: var(--text-primary);
+}
+
+.warning-body {
+	flex: 1;
+	line-height: 1.4;
+}
+
+.warning-body strong {
+	display: block;
+	margin-bottom: 2px;
+}
+
+.warning-body a {
+	color: var(--warning);
+	text-decoration: underline;
 }
 
 .empty-state {

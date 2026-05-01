@@ -2,13 +2,21 @@
 	import { onMount } from 'svelte';
 	import { appState } from '../lib/state.svelte';
 	import { fetchLatestRelease, type ReleaseInfo } from '../lib/github';
+	import { detectUnsupportedDesktop } from '../lib/browser';
 	import InstanceCard from './InstanceCard.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 
 	let showAddForm = $state(false);
 	let update = $state<ReleaseInfo | null>(null);
+	let unsupported = $state<'firefox' | 'safari' | null>(null);
 
 	const hostedPwa = location.hostname === 'pwa.odio.love';
+	const unsupportedLabel = $derived(
+		unsupported ? unsupported[0].toUpperCase() + unsupported.slice(1) : '',
+	);
+	const ctaDisabledTitle = $derived(
+		unsupported ? `${unsupportedLabel} desktop blocks local-network connections from HTTPS sites.` : '',
+	);
 	const updateTooltip = $derived(
 		update
 			? hostedPwa
@@ -27,6 +35,8 @@
 		fetchLatestRelease(__APP_VERSION__).then((latest) => {
 			if (latest) update = latest;
 		});
+
+		unsupported = detectUnsupportedDesktop();
 
 		return () => {
 			appState.disconnectAll();
@@ -49,7 +59,20 @@
 		</button>
 	</header>
 
-	{#if appState.instances.length === 0 && !showAddForm}
+	{#if unsupported}
+		<aside class="warning-banner" role="alert">
+			<div class="warning-body">
+				<strong>{unsupportedLabel} desktop blocks local-network connections from HTTPS sites.</strong>
+				Use Chrome or Edge, or
+				<a href="https://docs.odio.love/guides/pwa/#self-hosting" target="_blank" rel="noopener noreferrer">
+					self-host this website
+				</a>
+				over HTTP on your network.
+			</div>
+		</aside>
+	{/if}
+
+	{#if appState.instances.length === 0 && !showAddForm && !unsupported}
 		<div class="empty-state">
 			<p>No instances configured.</p>
 			<p>Add an odio-api instance to get started.</p>
@@ -66,7 +89,14 @@
 		{#if showAddForm}
 			<AddInstanceForm onclose={() => (showAddForm = false)} />
 		{:else}
-			<button class="btn-add" onclick={() => (showAddForm = true)}> + Add Instance </button>
+			<button
+				class="btn-add"
+				onclick={() => (showAddForm = true)}
+				disabled={!!unsupported}
+				title={ctaDisabledTitle}
+			>
+				+ Add Instance
+			</button>
 		{/if}
 	</section>
 
