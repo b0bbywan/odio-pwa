@@ -6,14 +6,24 @@ import { version as pkgVersion } from './package.json';
 
 function gitDescribe(): string | null {
 	try {
-		const raw = execSync('git describe --tags', { stdio: ['ignore', 'pipe', 'ignore'] })
+		const raw = execSync('git describe --tags --always --dirty', { stdio: ['ignore', 'pipe', 'ignore'] })
 			.toString()
 			.trim();
-		// v0.3.4 → 0.3.4 ; v0.3.4-1-g838e075 → 0.3.4+1.g838e075 (semver build-meta)
-		const m = raw.match(/^v?(\d+\.\d+\.\d+)(?:-(\d+)-g([0-9a-f]+))?$/);
-		if (!m) return null;
-		const [, tag, count, sha] = m;
-		return count ? `${tag}+${count}.g${sha}` : tag;
+		if (!raw) return null;
+		// v0.3.4 → 0.3.4
+		// v0.3.4-1-g838e075 → 0.3.4+1.g838e075 (semver build-meta)
+		// + optional -dirty suffix on either of the above
+		const tagged = raw.match(/^v?(\d+\.\d+\.\d+)(?:-(\d+)-g([0-9a-f]+))?(-dirty)?$/);
+		if (tagged) {
+			const [, tag, count, sha, dirty] = tagged;
+			const base = count ? `${tag}+${count}.g${sha}` : tag;
+			return dirty ? `${base}.dirty` : base;
+		}
+		// Vercel ships a shallow clone where the latest tag may be unreachable;
+		// --always then returns a bare SHA. Pair it with the package.json version.
+		const sha = raw.match(/^([0-9a-f]+)(-dirty)?$/);
+		if (sha) return `${pkgVersion}+g${sha[1]}${sha[2] ? '.dirty' : ''}`;
+		return null;
 	} catch {
 		return null;
 	}
