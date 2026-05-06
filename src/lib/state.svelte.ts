@@ -69,8 +69,10 @@ export class AppState {
 	// the callbacks instead of tearing down and re-firing the probe.
 	private foregroundCallbacks = new Map<string, InstanceCallbacks>();
 
-	get onlineInstances(): OdioInstance[] {
-		return this.instances.filter((i) => i.status === 'online');
+	// Instances the user can actually switch to: SSE up, or up-but-no-CORS-headers
+	// (the iframe still loads in that case).
+	get connectableInstances(): OdioInstance[] {
+		return this.instances.filter((i) => i.status === 'online' || i.status === 'cors');
 	}
 
 	get sortedInstances(): OdioInstance[] {

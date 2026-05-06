@@ -79,7 +79,7 @@
 			<button
 				class="btn-primary"
 				onclick={() => appState.openInstance(instance.id)}
-				disabled={instance.status !== 'online'}
+				disabled={instance.status !== 'online' && instance.status !== 'cors'}
 			>
 				Connect
 			</button>

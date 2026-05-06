@@ -29,7 +29,7 @@ const mockState = vi.hoisted(() => ({ savePromptVisible: false }));
 
 vi.mock('../lib/state.svelte', () => ({
 	appState: {
-		get onlineInstances() { return [mockInstance, mockInstance2]; },
+		get connectableInstances() { return [mockInstance, mockInstance2]; },
 		get savePromptVisible() { return mockState.savePromptVisible; },
 		set savePromptVisible(v: boolean) { mockState.savePromptVisible = v; },
 		findByHostPort: vi.fn((host: string, port: number) => {

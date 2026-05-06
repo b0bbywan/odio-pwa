@@ -131,6 +131,16 @@ describe('InstanceCard — Connect button', () => {
 		expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
 	});
 
+	test('enabled when cors — iframe loads even without API CORS headers', () => {
+		render(InstanceCard, { instance: { ...base, status: 'cors' } });
+		expect(screen.getByRole('button', { name: 'Connect' })).not.toBeDisabled();
+	});
+
+	test('disabled when blocked — mixed-content stops the iframe too', () => {
+		render(InstanceCard, { instance: { ...base, status: 'blocked' } });
+		expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
+	});
+
 	test('click calls appState.openInstance with the instance id', async () => {
 		render(InstanceCard, { instance: base });
 		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
