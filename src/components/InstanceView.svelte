@@ -34,6 +34,15 @@
 		}
 	});
 
+	// Status can flip to cors after the first probe (e.g. a transient instance
+	// opened via URL params). Drop the keepalive so the give-up timer can't
+	// trigger a misleading poweroff overlay.
+	$effect(() => {
+		if (instance?.status === 'cors' && currentSSEId !== null) {
+			detachSSE();
+		}
+	});
+
 	function handlePowerAction(action: PowerEvent) {
 		powerEvent = action;
 	}
@@ -60,9 +69,13 @@
 
 	function attachSSE(id: string) {
 		if (currentSSEId !== null) appState.disconnectOne(currentSSEId);
-		currentSSEId = id;
+		currentSSEId = null;
 		serverWentOffline = false;
 		waiting = false;
+		// CORS blocks the probe but not the iframe — skip the keepalive so the
+		// give-up timer can't trigger a misleading poweroff overlay.
+		if (instance?.status === 'cors') return;
+		currentSSEId = id;
 		appState.connectOne(id, { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp });
 	}
 

@@ -153,6 +153,16 @@ describe('InstanceView — poweroff', () => {
 	});
 });
 
+// ── cors ──────────────────────────────────────────────────────────────────────
+
+describe('InstanceView — cors', () => {
+	test('skips the keepalive when status is cors — iframe still loads, probe retries are futile', () => {
+		mockInstance.status = 'cors';
+		render(InstanceView);
+		expect(appState.connectOne).not.toHaveBeenCalled();
+	});
+});
+
 // ── switchTo ──────────────────────────────────────────────────────────────────
 
 describe('InstanceView — switchTo', () => {
