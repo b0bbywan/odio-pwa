@@ -25,19 +25,38 @@ const capturedCallbacks = vi.hoisted(() => ({
 	onGiveUp: undefined as (() => void) | undefined,
 }));
 
+const mockState = vi.hoisted(() => ({ savePromptVisible: false }));
+
 vi.mock('../lib/state.svelte', () => ({
 	appState: {
-		get activeInstance() { return mockInstance; },
 		get onlineInstances() { return [mockInstance, mockInstance2]; },
+		get savePromptVisible() { return mockState.savePromptVisible; },
+		set savePromptVisible(v: boolean) { mockState.savePromptVisible = v; },
+		findByHostPort: vi.fn((host: string, port: number) => {
+			if (host === mockInstance.host && port === mockInstance.port) return mockInstance;
+			if (host === mockInstance2.host && port === mockInstance2.port) return mockInstance2;
+			return undefined;
+		}),
+		findById: vi.fn((id: string) => {
+			if (id === mockInstance.id) return mockInstance;
+			if (id === mockInstance2.id) return mockInstance2;
+			return undefined;
+		}),
+		addInstance: vi.fn(),
 		connectOne: vi.fn((_id: string, extra?: { onPowerAction?: (a: PowerEvent) => void; onGiveUp?: () => void }) => {
 			capturedCallbacks.onPowerAction = extra?.onPowerAction;
 			capturedCallbacks.onGiveUp = extra?.onGiveUp;
 		}),
 		disconnectOne: vi.fn(),
-		goToList: vi.fn(),
 		openInstance: vi.fn(),
+		persistInstance: vi.fn(),
+		removeInstance: vi.fn(),
 	},
 }));
+
+const mockRouter = vi.hoisted(() => ({ querystring: '' }));
+
+vi.mock('svelte-spa-router', () => ({ push: vi.fn(), router: mockRouter }));
 
 vi.mock('../lib/api', () => ({
 	getInstanceUiUrl: (host: string, port: number) => `http://${host}:${port}/ui`,
@@ -45,35 +64,104 @@ vi.mock('../lib/api', () => ({
 
 import InstanceView from './InstanceView.svelte';
 import { appState } from '../lib/state.svelte';
+import { push } from 'svelte-spa-router';
+
+const params = (host: string, port?: string) => ({ params: { host, port: port ?? null } });
+const defaultParams = params('192.168.1.1', '8080');
 
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockInstance.status = 'online';
+	mockInstance.transient = undefined;
 	capturedCallbacks.onPowerAction = undefined;
 	capturedCallbacks.onGiveUp = undefined;
+	mockState.savePromptVisible = false;
+	mockRouter.querystring = '';
+	history.replaceState(null, '', '/');
 });
 
 // ── normal state ──────────────────────────────────────────────────────────────
 
 describe('InstanceView — normal state', () => {
 	test('shows the iframe when no power event', () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		expect(document.querySelector('iframe')).toBeInTheDocument();
 		expect(screen.queryByText('Server is rebooting')).not.toBeInTheDocument();
 	});
 
 	test('connects SSE with power callbacks on mount', () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		expect(appState.connectOne).toHaveBeenCalledWith('1', {
 			onPowerAction: expect.any(Function),
 			onGiveUp: expect.any(Function),
 		});
 	});
 
-	test('disconnects SSE on unmount', () => {
-		const { unmount } = render(InstanceView);
+	test('hands the connection back to the background pool on unmount (no power callbacks)', () => {
+		const { unmount } = render(InstanceView, defaultParams);
+		vi.mocked(appState.connectOne).mockClear();
 		unmount();
-		expect(appState.disconnectOne).toHaveBeenCalledWith('1');
+		// Reconnects without callbacks so the list view keeps live status.
+		expect(appState.connectOne).toHaveBeenCalledWith('1');
+		expect(appState.connectOne).toHaveBeenCalledTimes(1);
+	});
+
+	test('creates a transient instance when no match exists for the route params', () => {
+		render(InstanceView, params('10.0.0.99', '9000'));
+		expect(appState.addInstance).toHaveBeenCalledWith('10.0.0.99', 9000, undefined, { transient: true });
+	});
+
+	test('reads label from the router querystring on transient creation', () => {
+		mockRouter.querystring = 'label=Salon';
+		render(InstanceView, params('10.0.0.99', '9000'));
+		expect(appState.addInstance).toHaveBeenCalledWith('10.0.0.99', 9000, 'Salon', { transient: true });
+	});
+
+	test('redirects to / when the port is not a valid number', () => {
+		render(InstanceView, params('10.0.0.99', 'abc'));
+		expect(push).toHaveBeenCalledWith('/');
+		expect(appState.addInstance).not.toHaveBeenCalled();
+	});
+
+	test('redirects to / when the port is out of range', () => {
+		render(InstanceView, params('10.0.0.99', '99999'));
+		expect(push).toHaveBeenCalledWith('/');
+		expect(appState.addInstance).not.toHaveBeenCalled();
+	});
+
+	test('removes the transient instance on unmount when not saved', () => {
+		const txId = 'tx-1';
+		const tx: OdioInstance = {
+			id: txId, host: '10.0.0.99', port: 9000, status: 'unknown', transient: true,
+		};
+		vi.mocked(appState.addInstance).mockReturnValue(txId);
+		vi.mocked(appState.findById).mockImplementation((id: string) => {
+			if (id === txId) return tx;
+			if (id === '1') return mockInstance;
+			if (id === '2') return mockInstance2;
+			return undefined;
+		});
+		const { unmount } = render(InstanceView, params('10.0.0.99', '9000'));
+		expect(appState.addInstance).toHaveBeenCalledOnce();
+		unmount();
+		expect(appState.removeInstance).toHaveBeenCalledWith(txId);
+	});
+
+	test('does not remove an instance that has been saved before unmount', () => {
+		const txId = 'tx-2';
+		const saved: OdioInstance = {
+			id: txId, host: '10.0.0.99', port: 9000, status: 'online', transient: false,
+		};
+		vi.mocked(appState.addInstance).mockReturnValue(txId);
+		vi.mocked(appState.findById).mockImplementation((id: string) => {
+			if (id === txId) return saved;
+			if (id === '1') return mockInstance;
+			if (id === '2') return mockInstance2;
+			return undefined;
+		});
+		const { unmount } = render(InstanceView, params('10.0.0.99', '9000'));
+		unmount();
+		expect(appState.removeInstance).not.toHaveBeenCalled();
 	});
 });
 
@@ -81,19 +169,16 @@ describe('InstanceView — normal state', () => {
 
 describe('InstanceView — reboot', () => {
 	test('shows the reboot screen when power.action reboot is received', () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('reboot'));
 		expect(screen.getByText('Server is rebooting')).toBeInTheDocument();
 		expect(document.querySelector('iframe')).not.toBeInTheDocument();
 	});
 
 	test('does not auto-reconnect while server is still online (regression)', () => {
-		// Bug: the old $effect triggered immediately because status was 'online'
-		// when power.action arrived, before the server had a chance to go offline.
 		mockInstance.status = 'online';
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('reboot'));
-		// Reboot screen must stay visible — server hasn't gone offline yet
 		expect(screen.getByText('Server is rebooting')).toBeInTheDocument();
 	});
 });
@@ -102,39 +187,29 @@ describe('InstanceView — reboot', () => {
 
 describe('InstanceView — poweroff', () => {
 	test('shows the poweroff screen when power.action poweroff is received', () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
 		expect(screen.getByText('Server is shutting down')).toBeInTheDocument();
 		expect(document.querySelector('iframe')).not.toBeInTheDocument();
 	});
 
 	test('onGiveUp callback triggers the poweroff choice screen', () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onGiveUp?.());
 		expect(screen.getByText('Server is shutting down')).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Wait' })).toBeInTheDocument();
 	});
 
-	test('dismiss button calls appState.goToList', async () => {
-		render(InstanceView);
+	test('dismiss button routes to /', async () => {
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
 		const powerScreen = document.querySelector<HTMLElement>('.power-screen')!;
 		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
-		expect(appState.goToList).toHaveBeenCalledOnce();
-	});
-
-	test('dismiss button calls history.back()', async () => {
-		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
-		render(InstanceView);
-		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
-		const powerScreen = document.querySelector('.power-screen')!;
-		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
-		expect(back).toHaveBeenCalledOnce();
-		back.mockRestore();
+		expect(push).toHaveBeenCalledWith('/');
 	});
 
 	test('clicking Wait restarts the connection', async () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onGiveUp?.());
 		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
 		expect(appState.connectOne).toHaveBeenCalledTimes(2); // mount + restart
@@ -145,7 +220,7 @@ describe('InstanceView — poweroff', () => {
 	});
 
 	test('clicking Wait switches to waiting spinner', async () => {
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
 		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
 		expect(screen.getByText(/Waiting for comeback/)).toBeInTheDocument();
@@ -158,7 +233,7 @@ describe('InstanceView — poweroff', () => {
 describe('InstanceView — cors', () => {
 	test('skips the keepalive when status is cors — iframe still loads, probe retries are futile', () => {
 		mockInstance.status = 'cors';
-		render(InstanceView);
+		render(InstanceView, defaultParams);
 		expect(appState.connectOne).not.toHaveBeenCalled();
 	});
 });
@@ -166,16 +241,165 @@ describe('InstanceView — cors', () => {
 // ── switchTo ──────────────────────────────────────────────────────────────────
 
 describe('InstanceView — switchTo', () => {
-	test('switches SSE connection and opens the selected instance', async () => {
-		render(InstanceView);
-		// Open the instance switcher dropdown
+	test('switching opens the selected instance via the router', async () => {
+		render(InstanceView, defaultParams);
 		await fireEvent.click(screen.getByTitle('Switch instance'));
-		// Click the second instance (Pi2, not the current one)
 		await fireEvent.click(screen.getByText('Pi2'));
-		expect(appState.connectOne).toHaveBeenLastCalledWith('2', expect.objectContaining({
-			onPowerAction: expect.any(Function),
-			onGiveUp: expect.any(Function),
-		}));
 		expect(appState.openInstance).toHaveBeenCalledWith('2');
+	});
+});
+
+// ── transient instance ────────────────────────────────────────────────────────
+
+describe('InstanceView — transient', () => {
+	test('Save button in the top bar is hidden for non-transient instances', () => {
+		mockInstance.transient = false;
+		render(InstanceView, defaultParams);
+		expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
+	});
+
+	test('Save button in the top bar is shown for transient instances', () => {
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+	});
+
+	test('clicking the Save button calls persistInstance with the instance id', async () => {
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		await fireEvent.click(screen.getByRole('button', { name: /save/i }));
+		expect(appState.persistInstance).toHaveBeenCalledWith('1');
+	});
+
+	test('back button on a non-transient instance routes to /', async () => {
+		mockInstance.transient = false;
+		render(InstanceView, defaultParams);
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(push).toHaveBeenCalledWith('/');
+		expect(mockState.savePromptVisible).toBe(false);
+	});
+
+	test('back button on a transient instance shows the save prompt instead of leaving', async () => {
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(mockState.savePromptVisible).toBe(true);
+		expect(push).not.toHaveBeenCalled();
+	});
+
+	test('browser back (popstate) on a transient instance shows the save prompt', () => {
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		expect(mockState.savePromptVisible).toBe(false);
+		window.dispatchEvent(new PopStateEvent('popstate'));
+		expect(mockState.savePromptVisible).toBe(true);
+	});
+
+	test('browser back is not trapped on a non-transient instance', () => {
+		mockInstance.transient = false;
+		render(InstanceView, defaultParams);
+		window.dispatchEvent(new PopStateEvent('popstate'));
+		expect(mockState.savePromptVisible).toBe(false);
+	});
+
+	test('pops the sentinel history entry on unmount so no phantom remains', () => {
+		mockInstance.transient = true;
+		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+		const { unmount } = render(InstanceView, defaultParams);
+		// The transient effect pushed our guard.
+		expect(history.state).toEqual({ odioGuard: true });
+		unmount();
+		// Cleanup popped it (history.state reads aren't synchronous in jsdom,
+		// so we verify intent via the spy).
+		expect(back).toHaveBeenCalled();
+		back.mockRestore();
+	});
+
+	test('does not pop on unmount of a non-transient instance', () => {
+		mockInstance.transient = false;
+		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
+		const { unmount } = render(InstanceView, defaultParams);
+		unmount();
+		expect(back).not.toHaveBeenCalled();
+		back.mockRestore();
+	});
+});
+
+// ── save prompt ───────────────────────────────────────────────────────────────
+
+describe('InstanceView — save prompt', () => {
+	test('does not render when savePromptVisible is false', () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = false;
+		render(InstanceView, defaultParams);
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	test('does not render when the instance is not transient (defensive)', () => {
+		mockInstance.transient = false;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
+	test('renders when both flags are set', () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		expect(screen.getByRole('dialog', { name: /save this instance/i })).toBeInTheDocument();
+	});
+
+	test('Save action persists the instance and routes to /', async () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		const dialog = screen.getByRole('dialog');
+		await fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+		expect(appState.persistInstance).toHaveBeenCalledWith('1');
+		expect(mockState.savePromptVisible).toBe(false);
+		expect(push).toHaveBeenCalledWith('/');
+	});
+
+	test("Don't save action removes the transient instance and routes to /", async () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		const dialog = screen.getByRole('dialog');
+		await fireEvent.click(within(dialog).getByRole('button', { name: /don't save/i }));
+		expect(appState.removeInstance).toHaveBeenCalledWith('1');
+		expect(mockState.savePromptVisible).toBe(false);
+		expect(push).toHaveBeenCalledWith('/');
+		expect(appState.persistInstance).not.toHaveBeenCalled();
+	});
+
+	test('Cancel action only hides the prompt — no navigation or persistence', async () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		const dialog = screen.getByRole('dialog');
+		await fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+		expect(mockState.savePromptVisible).toBe(false);
+		expect(push).not.toHaveBeenCalled();
+		expect(appState.persistInstance).not.toHaveBeenCalled();
+		expect(appState.removeInstance).not.toHaveBeenCalled();
+	});
+
+	test('Escape key closes the prompt without persisting or navigating', () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = true;
+		render(InstanceView, defaultParams);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+		expect(mockState.savePromptVisible).toBe(false);
+		expect(push).not.toHaveBeenCalled();
+		expect(appState.persistInstance).not.toHaveBeenCalled();
+		expect(appState.removeInstance).not.toHaveBeenCalled();
+	});
+
+	test('Escape key is a no-op when the prompt is closed', () => {
+		mockInstance.transient = true;
+		mockState.savePromptVisible = false;
+		render(InstanceView, defaultParams);
+		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+		expect(mockState.savePromptVisible).toBe(false);
 	});
 });

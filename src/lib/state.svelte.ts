@@ -1,8 +1,10 @@
-import type { OdioInstance, AppView } from './types';
+import type { OdioInstance } from './types';
 import { createConnection } from './connection';
+import { push } from 'svelte-spa-router';
 
 const STORAGE_KEY = 'odio-instances';
 const SSE_LIMIT = 6;
+const DEFAULT_PORT = 8018;
 
 function loadInstances(): OdioInstance[] {
 	try {
@@ -20,14 +22,16 @@ function loadInstances(): OdioInstance[] {
 }
 
 function saveInstances(instances: OdioInstance[]): void {
-	const toSave = instances.map(({ id, host, port, label, serverInfo, connectedAt }) => ({
-		id,
-		host,
-		port,
-		label,
-		serverInfo,
-		connectedAt,
-	}));
+	const toSave = instances
+		.filter((i) => !i.transient)
+		.map(({ id, host, port, label, serverInfo, connectedAt }) => ({
+			id,
+			host,
+			port,
+			label,
+			serverInfo,
+			connectedAt,
+		}));
 	localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
 }
 
@@ -39,6 +43,14 @@ export function byPriority(a: OdioInstance, b: OdioInstance): number {
 	return (b.connectedAt ?? 0) - (a.connectedAt ?? 0);
 }
 
+export function instancePath(host: string, port: number, label?: string): string {
+	const base = port === DEFAULT_PORT
+		? `/i/${encodeURIComponent(host)}`
+		: `/i/${encodeURIComponent(host)}/${port}`;
+	if (!label) return base;
+	return `${base}?label=${encodeURIComponent(label)}`;
+}
+
 export interface InstanceCallbacks {
 	onPowerAction?: (action: 'reboot' | 'poweroff') => void;
 	onGiveUp?: () => void;
@@ -46,16 +58,16 @@ export interface InstanceCallbacks {
 
 export class AppState {
 	instances: OdioInstance[] = $state(loadInstances());
-	currentView: AppView = $state('list');
-	activeInstanceId: string | null = $state(null);
+	savePromptVisible: boolean = $state(false);
 
 	// SSE connections (max SSE_LIMIT); polling connections for the rest
 	private sseConnections = new Map<string, () => void>();
 	private pollConnections = new Map<string, () => void>();
-
-	get activeInstance(): OdioInstance | undefined {
-		return this.instances.find((i) => i.id === this.activeInstanceId);
-	}
+	// Power callbacks set by InstanceView while it's the foreground view.
+	// Looked up dynamically inside the connection wrappers, so a second
+	// connectOne (e.g. background pool then foreground attach) just swaps
+	// the callbacks instead of tearing down and re-firing the probe.
+	private foregroundCallbacks = new Map<string, InstanceCallbacks>();
 
 	get onlineInstances(): OdioInstance[] {
 		return this.instances.filter((i) => i.status === 'online');
@@ -65,14 +77,31 @@ export class AppState {
 		return [...this.instances].sort(byPriority);
 	}
 
-	addInstance(host: string, port: number, label?: string): void {
+	addInstance(host: string, port: number, label?: string, opts: { transient?: boolean } = {}): string {
 		const id = crypto.randomUUID();
-		this.instances.push({ id, host, port, label, status: 'unknown', serverInfo: null });
-		saveInstances(this.instances);
+		this.instances.push({ id, host, port, label, status: 'unknown', serverInfo: null, transient: opts.transient });
+		if (!opts.transient) saveInstances(this.instances);
 		if (this.sseConnections.size < SSE_LIMIT) {
 			this.connectOne(id);
 		} else {
 			this.startPolling(id);
+		}
+		return id;
+	}
+
+	findByHostPort(host: string, port: number): OdioInstance | undefined {
+		return this.instances.find((i) => i.host === host && i.port === port);
+	}
+
+	findById(id: string): OdioInstance | undefined {
+		return this.instances.find((i) => i.id === id);
+	}
+
+	persistInstance(id: string): void {
+		const inst = this.instances.find((i) => i.id === id);
+		if (inst && inst.transient) {
+			inst.transient = false;
+			saveInstances(this.instances);
 		}
 	}
 
@@ -83,10 +112,6 @@ export class AppState {
 		if (idx !== -1) {
 			this.instances.splice(idx, 1);
 			saveInstances(this.instances);
-			if (this.activeInstanceId === id) {
-				this.activeInstanceId = null;
-				this.currentView = 'list';
-			}
 		}
 	}
 
@@ -103,23 +128,25 @@ export class AppState {
 	}
 
 	openInstance(id: string): void {
-		if (this.currentView === 'instance') {
-			history.replaceState(null, ''); // switching instance → no extra history entry
-		} else {
-			history.pushState(null, ''); // list → instance: push so back returns to list
-		}
-		this.activeInstanceId = id;
-		this.currentView = 'instance';
+		const inst = this.findById(id);
+		if (inst) push(instancePath(inst.host, inst.port, inst.label));
 	}
 
 	goToList(): void {
-		this.currentView = 'list';
+		push('/');
 	}
 
+	// Idempotent for the connection itself: if there's already an SSE up for
+	// this id, only the foreground callbacks are swapped. Pass extras to
+	// register power callbacks (foreground); call without extras to drop
+	// them (hand back to background pool). Use disconnectOne / probeOne
+	// when you actually need to tear down and re-fire the probe.
 	connectOne(id: string, extra?: InstanceCallbacks): void {
 		const inst = this.instances.find((i) => i.id === id);
 		if (!inst) return;
-		this.disconnectOne(id);
+		if (extra) this.foregroundCallbacks.set(id, extra);
+		else this.foregroundCallbacks.delete(id);
+		if (this.sseConnections.has(id)) return;
 		const destroy = createConnection(inst.host, inst.port, {
 			onStatus: (status) => {
 				inst.status = status;
@@ -129,8 +156,8 @@ export class AppState {
 				inst.connectedAt = Date.now();
 				saveInstances(this.instances);
 			},
-			onGiveUp: extra?.onGiveUp ?? (() => {}),
-			onPowerAction: extra?.onPowerAction,
+			onGiveUp: () => this.foregroundCallbacks.get(id)?.onGiveUp?.(),
+			onPowerAction: (action) => this.foregroundCallbacks.get(id)?.onPowerAction?.(action),
 		});
 		this.sseConnections.set(id, destroy);
 	}
@@ -138,6 +165,7 @@ export class AppState {
 	disconnectOne(id: string): void {
 		this.sseConnections.get(id)?.();
 		this.sseConnections.delete(id);
+		this.foregroundCallbacks.delete(id);
 	}
 
 	private startPolling(id: string): void {
@@ -163,10 +191,18 @@ export class AppState {
 		this.pollConnections.delete(id);
 	}
 
+	// Idempotent: leaves existing connections alone (InstanceView may have
+	// already attached one with power callbacks for the current instance).
 	connectAll(): void {
 		const sorted = this.sortedInstances;
-		sorted.slice(0, SSE_LIMIT).forEach((i) => this.connectOne(i.id));
-		sorted.slice(SSE_LIMIT).forEach((i) => this.startPolling(i.id));
+		sorted.slice(0, SSE_LIMIT).forEach((i) => {
+			if (!this.sseConnections.has(i.id)) this.connectOne(i.id);
+		});
+		sorted.slice(SSE_LIMIT).forEach((i) => {
+			if (!this.sseConnections.has(i.id) && !this.pollConnections.has(i.id)) {
+				this.startPolling(i.id);
+			}
+		});
 	}
 
 	disconnectAll(): void {

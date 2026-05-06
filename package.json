@@ -31,5 +31,8 @@
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18",
     "workbox-window": "^7.4.0"
+  },
+  "dependencies": {
+    "svelte-spa-router": "^5.1.0"
   }
 }

@@ -4,10 +4,12 @@ import type { SSEExtraCallbacks } from './sse';
 // Mock dependencies before importing AppState
 vi.mock('./sse', () => ({ connectSSE: vi.fn() }));
 vi.mock('./api', () => ({ probeInstance: vi.fn() }));
+vi.mock('svelte-spa-router', () => ({ push: vi.fn() }));
 
-import { AppState } from './state.svelte';
+import { AppState, instancePath } from './state.svelte';
 import { connectSSE } from './sse';
 import { probeInstance } from './api';
+import { push } from 'svelte-spa-router';
 
 // --- helpers ---
 
@@ -98,6 +100,83 @@ describe('addInstance', () => {
 	});
 });
 
+describe('addInstance — transient', () => {
+	test('adds an instance flagged as transient', () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080, 'pi', { transient: true });
+		expect(s.instances[0]).toMatchObject({ host: '192.168.1.1', transient: true });
+	});
+
+	test('does not persist transient instances to localStorage', () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080, undefined, { transient: true });
+		expect(localStorage.getItem('odio-instances')).toBeNull();
+	});
+
+	test('still opens an SSE connection for transient instances', async () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080, undefined, { transient: true });
+		await flushPromises();
+		expect(connectSSE).toHaveBeenCalledOnce();
+	});
+
+	test('returns the new instance id', () => {
+		const s = new AppState();
+		const id = s.addInstance('192.168.1.1', 8080);
+		expect(id).toBe(s.instances[0].id);
+	});
+
+	test('saving an existing connectedAt does not leak the transient one to storage', async () => {
+		// onServerInfo persists to storage; the transient flag must filter it out.
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080, undefined, { transient: true });
+		await flushPromises();
+		await lastSSE().onOpen(); // triggers saveInstances via onServerInfo
+		expect(localStorage.getItem('odio-instances')).toBe('[]');
+	});
+});
+
+describe('persistInstance', () => {
+	test('clears the transient flag and writes to localStorage', () => {
+		const s = new AppState();
+		const id = s.addInstance('192.168.1.1', 8080, 'pi', { transient: true });
+		s.persistInstance(id);
+		expect(s.instances[0].transient).toBe(false);
+		const saved = JSON.parse(localStorage.getItem('odio-instances')!);
+		expect(saved).toHaveLength(1);
+		expect(saved[0]).toMatchObject({ host: '192.168.1.1', label: 'pi' });
+	});
+
+	test('is a no-op for non-transient instances', () => {
+		const s = new AppState();
+		const id = s.addInstance('192.168.1.1', 8080);
+		localStorage.clear();
+		s.persistInstance(id);
+		expect(localStorage.getItem('odio-instances')).toBeNull();
+	});
+
+	test('is a no-op for unknown ids', () => {
+		const s = new AppState();
+		expect(() => s.persistInstance('does-not-exist')).not.toThrow();
+	});
+});
+
+describe('findByHostPort', () => {
+	test('returns the matching instance', () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		s.addInstance('192.168.1.2', 9090);
+		expect(s.findByHostPort('192.168.1.2', 9090)?.host).toBe('192.168.1.2');
+	});
+
+	test('returns undefined when host:port does not match', () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		expect(s.findByHostPort('10.0.0.1', 8080)).toBeUndefined();
+		expect(s.findByHostPort('192.168.1.1', 9090)).toBeUndefined();
+	});
+});
+
 describe('removeInstance', () => {
 	test('removes the instance from the array', async () => {
 		const s = new AppState();
@@ -117,26 +196,14 @@ describe('removeInstance', () => {
 		expect(cleanup).toHaveBeenCalledOnce();
 	});
 
-	test('navigates back to list when the active instance is removed', async () => {
+	test('removes from the instances list and from localStorage', async () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		await flushPromises();
 		const id = s.instances[0].id;
-		s.openInstance(id);
-		expect(s.currentView).toBe('instance');
 		s.removeInstance(id);
-		expect(s.currentView).toBe('list');
-		expect(s.activeInstanceId).toBeNull();
-	});
-
-	test('does not affect view when a non-active instance is removed', async () => {
-		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
-		s.addInstance('192.168.1.2', 8080);
-		await flushPromises();
-		s.openInstance(s.instances[0].id);
-		s.removeInstance(s.instances[1].id);
-		expect(s.currentView).toBe('instance');
+		expect(s.instances).toHaveLength(0);
+		expect(JSON.parse(localStorage.getItem('odio-instances') || '[]')).toEqual([]);
 	});
 });
 
@@ -166,56 +233,46 @@ describe('updateInstance', () => {
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
 
-describe('openInstance / goToList', () => {
-	test('openInstance sets view and activeInstanceId', () => {
+describe('openInstance / goToList / instancePath', () => {
+	test('openInstance routes to /i/<host> for default port 8018', () => {
 		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
-		const id = s.instances[0].id;
-		s.openInstance(id);
-		expect(s.currentView).toBe('instance');
-		expect(s.activeInstanceId).toBe(id);
+		s.addInstance('192.168.1.1', 8018);
+		s.openInstance(s.instances[0].id);
+		expect(push).toHaveBeenCalledWith('/i/192.168.1.1');
 	});
 
-	test('goToList resets the view', () => {
+	test('openInstance includes the port when not default', () => {
 		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
+		s.addInstance('192.168.1.1', 9000);
 		s.openInstance(s.instances[0].id);
+		expect(push).toHaveBeenCalledWith('/i/192.168.1.1/9000');
+	});
+
+	test('openInstance encodes host and label safely', () => {
+		const s = new AppState();
+		s.addInstance('my server', 9000, 'Living Room');
+		s.openInstance(s.instances[0].id);
+		expect(push).toHaveBeenCalledWith('/i/my%20server/9000?label=Living%20Room');
+	});
+
+	test('openInstance is a no-op when the id is unknown', () => {
+		const s = new AppState();
+		s.openInstance('no-such-id');
+		expect(push).not.toHaveBeenCalled();
+	});
+
+	test('goToList routes to /', () => {
+		const s = new AppState();
 		s.goToList();
-		expect(s.currentView).toBe('list');
+		expect(push).toHaveBeenCalledWith('/');
 	});
 
-	test('activeInstance returns the correct instance', () => {
-		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080, 'pi');
-		const id = s.instances[0].id;
-		s.openInstance(id);
-		expect(s.activeInstance?.label).toBe('pi');
-	});
-
-	test('activeInstance returns undefined when on the list view', () => {
-		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
-		expect(s.activeInstance).toBeUndefined();
-	});
-
-	test('pushes a history entry when navigating list → instance', () => {
-		const push = vi.spyOn(history, 'pushState');
-		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
-		s.openInstance(s.instances[0].id);
-		expect(push).toHaveBeenCalledOnce();
-		push.mockRestore();
-	});
-
-	test('replaces history entry when switching instance → instance', () => {
-		const s = new AppState();
-		s.addInstance('192.168.1.1', 8080);
-		s.addInstance('192.168.1.2', 8080);
-		s.openInstance(s.instances[0].id); // list → instance
-		const replace = vi.spyOn(history, 'replaceState');
-		s.openInstance(s.instances[1].id); // instance → instance
-		expect(replace).toHaveBeenCalledOnce();
-		replace.mockRestore();
+	test('instancePath builder matches the openInstance routing', () => {
+		expect(instancePath('192.168.1.1', 8018)).toBe('/i/192.168.1.1');
+		expect(instancePath('192.168.1.1', 9000)).toBe('/i/192.168.1.1/9000');
+		expect(instancePath('my server', 9000, 'Living Room')).toBe(
+			'/i/my%20server/9000?label=Living%20Room',
+		);
 	});
 });
 
@@ -244,7 +301,7 @@ describe('connectOne / disconnectOne', () => {
 		expect(connectSSE).toHaveBeenCalledOnce();
 	});
 
-	test('connectOne forwards onPowerAction to connectSSE', async () => {
+	test('connectOne wires onPowerAction so connectSSE forwards events to it', async () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		const id = s.instances[0].id;
@@ -253,7 +310,40 @@ describe('connectOne / disconnectOne', () => {
 		captured = [];
 		s.connectOne(id, { onPowerAction });
 		await flushPromises();
-		expect(lastSSE().extra?.onPowerAction).toBe(onPowerAction);
+		lastSSE().extra?.onPowerAction?.('reboot');
+		expect(onPowerAction).toHaveBeenCalledWith('reboot');
+	});
+
+	test('connectOne is idempotent for the connection - second call only swaps callbacks', async () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises(); // initial connection from addInstance
+		vi.clearAllMocks();
+		captured = [];
+		const onPowerAction = vi.fn();
+		s.connectOne(s.instances[0].id, { onPowerAction });
+		await flushPromises();
+		// No new SSE: the existing connection's callbacks were updated in place.
+		expect(connectSSE).not.toHaveBeenCalled();
+	});
+
+	test('connectOne lets a re-attached onPowerAction fire on subsequent power events', async () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises();
+		const id = s.instances[0].id;
+		const sse = lastSSE();
+		// Foreground attaches with callbacks, then drops them.
+		const onPowerAction = vi.fn();
+		s.connectOne(id, { onPowerAction });
+		s.connectOne(id); // hand back to background pool
+		sse.extra?.onPowerAction?.('reboot');
+		expect(onPowerAction).not.toHaveBeenCalled();
+		// Re-attach with new callbacks - same connection, new wrapper target.
+		const onPowerAction2 = vi.fn();
+		s.connectOne(id, { onPowerAction: onPowerAction2 });
+		sse.extra?.onPowerAction?.('poweroff');
+		expect(onPowerAction2).toHaveBeenCalledWith('poweroff');
 	});
 
 	test('disconnectOne calls the cleanup and removes the entry', async () => {
@@ -284,16 +374,29 @@ describe('connectOne / disconnectOne', () => {
 });
 
 describe('connectAll / disconnectAll', () => {
-	test('connectAll opens SSE for every instance', async () => {
+	test('connectAll opens SSE for every instance that is not already connected', async () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		s.addInstance('192.168.1.2', 8080);
 		await flushPromises(); // drain initial connections
+		s.disconnectAll();
 		vi.clearAllMocks();
 		captured = [];
 		s.connectAll();
 		await flushPromises();
 		expect(connectSSE).toHaveBeenCalledTimes(2);
+	});
+
+	test('connectAll is idempotent — leaves existing SSE connections in place', async () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		s.addInstance('192.168.1.2', 8080);
+		await flushPromises(); // drain initial connections (2 SSE)
+		vi.clearAllMocks();
+		captured = [];
+		s.connectAll(); // should be a no-op since both are already connected
+		await flushPromises();
+		expect(connectSSE).not.toHaveBeenCalled();
 	});
 
 	test('disconnectAll calls every cleanup', async () => {
