@@ -510,24 +510,39 @@ describe('onOffline callback', () => {
 	});
 });
 
-// ─── onlineInstances ─────────────────────────────────────────────────────────
+// ─── connectableInstances ────────────────────────────────────────────────────
 
-describe('onlineInstances', () => {
-	test('returns only instances whose status is online', () => {
+describe('connectableInstances', () => {
+	test('includes online instances', () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		s.addInstance('192.168.1.2', 8080);
 		s.instances[0].status = 'online';
 		s.instances[1].status = 'offline';
-		expect(s.onlineInstances).toHaveLength(1);
-		expect(s.onlineInstances[0].host).toBe('192.168.1.1');
+		expect(s.connectableInstances).toHaveLength(1);
+		expect(s.connectableInstances[0].host).toBe('192.168.1.1');
 	});
 
-	test('returns empty array when no instance is online', () => {
+	test('includes cors instances - the iframe still loads without API CORS headers', () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
+		s.addInstance('192.168.1.2', 8080);
+		s.instances[0].status = 'online';
+		s.instances[1].status = 'cors';
+		expect(s.connectableInstances).toHaveLength(2);
+	});
+
+	test('excludes offline, blocked, probing, unknown', () => {
+		const s = new AppState();
+		s.addInstance('a', 1);
+		s.addInstance('b', 1);
+		s.addInstance('c', 1);
+		s.addInstance('d', 1);
 		s.instances[0].status = 'offline';
-		expect(s.onlineInstances).toHaveLength(0);
+		s.instances[1].status = 'blocked';
+		s.instances[2].status = 'probing';
+		s.instances[3].status = 'unknown';
+		expect(s.connectableInstances).toHaveLength(0);
 	});
 });
 

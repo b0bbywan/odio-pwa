@@ -51,7 +51,7 @@
 		</button>
 	{/if}
 
-	{#if appState.onlineInstances.length > 1}
+	{#if appState.connectableInstances.length > 1}
 		<div class="switcher-wrapper">
 			<button
 				class="btn-switch"
@@ -67,7 +67,7 @@
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="switcher-backdrop" onclick={() => (showSwitcher = false)}></div>
 				<div class="switcher-dropdown">
-					{#each appState.onlineInstances as other (other.id)}
+					{#each appState.connectableInstances as other (other.id)}
 						{#if other.id !== currentId}
 							<button onclick={() => handleSwitch(other.id)}>
 								{other.label ||

@@ -6,7 +6,7 @@ import type { OdioInstance } from '../lib/types';
 // Mock appState before importing the component so the component picks up the mock.
 vi.mock('../lib/state.svelte', () => ({
 	appState: {
-		onlineInstances: [] as OdioInstance[],
+		connectableInstances: [] as OdioInstance[],
 	},
 }));
 
@@ -26,7 +26,7 @@ const inst = (id: string, label: string): OdioInstance => ({
 
 beforeEach(() => {
 	vi.clearAllMocks();
-	(appState as { onlineInstances: OdioInstance[] }).onlineInstances = [];
+	(appState as { connectableInstances: OdioInstance[] }).connectableInstances = [];
 });
 
 // ── display ───────────────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ describe('InstanceTopBar — save button', () => {
 
 describe('InstanceTopBar — switcher hidden', () => {
 	test('no switcher button when there is only one online instance', () => {
-		(appState as { onlineInstances: OdioInstance[] }).onlineInstances = [inst('1', 'Pi 1')];
+		(appState as { connectableInstances: OdioInstance[] }).connectableInstances = [inst('1', 'Pi 1')];
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
 		expect(screen.queryByTitle('Switch instance')).not.toBeInTheDocument();
 	});
@@ -105,7 +105,7 @@ describe('InstanceTopBar — switcher hidden', () => {
 
 describe('InstanceTopBar — switcher with multiple instances', () => {
 	beforeEach(() => {
-		(appState as { onlineInstances: OdioInstance[] }).onlineInstances = [
+		(appState as { connectableInstances: OdioInstance[] }).connectableInstances = [
 			inst('1', 'Pi 1'),
 			inst('2', 'Pi 2'),
 		];
