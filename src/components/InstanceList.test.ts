@@ -52,20 +52,8 @@ describe('InstanceList — empty state', () => {
 	});
 });
 
-// ── lifecycle ─────────────────────────────────────────────────────────────────
-
-describe('InstanceList — lifecycle', () => {
-	test('calls connectAll on mount', () => {
-		render(InstanceList);
-		expect(appState.connectAll).toHaveBeenCalledOnce();
-	});
-
-	test('calls disconnectAll on unmount', () => {
-		const { unmount } = render(InstanceList);
-		unmount();
-		expect(appState.disconnectAll).toHaveBeenCalledOnce();
-	});
-});
+// Lifecycle (connectAll/disconnectAll) lives in App.svelte now so probes keep
+// running when the user is on the instance route directly (e.g. after F5).
 
 // ── toolbar ───────────────────────────────────────────────────────────────────
 

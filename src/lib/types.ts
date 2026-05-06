@@ -21,8 +21,8 @@ export interface OdioInstance {
 	serverInfo?: OdioServerInfo | null;
 	status: 'unknown' | 'online' | 'offline' | 'probing' | 'blocked' | 'cors';
 	connectedAt?: number;
+	// Loaded from URL params; not persisted to localStorage until the user saves.
+	transient?: boolean;
 }
-
-export type AppView = 'list' | 'instance';
 
 export type PowerEvent = 'reboot' | 'poweroff';

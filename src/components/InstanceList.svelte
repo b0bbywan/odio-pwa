@@ -26,22 +26,10 @@
 	);
 
 	onMount(() => {
-		appState.connectAll();
-		function onVisible() {
-			if (document.visibilityState === 'visible') appState.probeAll();
-		}
-		document.addEventListener('visibilitychange', onVisible);
-
 		fetchLatestRelease(__APP_VERSION__).then((latest) => {
 			if (latest) update = latest;
 		});
-
 		unsupported = detectUnsupportedDesktop();
-
-		return () => {
-			appState.disconnectAll();
-			document.removeEventListener('visibilitychange', onVisible);
-		};
 	});
 </script>
 

@@ -6,13 +6,15 @@ import type { OdioInstance } from '../lib/types';
 // Mock appState before importing the component so the component picks up the mock.
 vi.mock('../lib/state.svelte', () => ({
 	appState: {
-		goToList: vi.fn(),
 		onlineInstances: [] as OdioInstance[],
 	},
 }));
 
+vi.mock('svelte-spa-router', () => ({ push: vi.fn() }));
+
 import InstanceTopBar from './InstanceTopBar.svelte';
 import { appState } from '../lib/state.svelte';
+import { push } from 'svelte-spa-router';
 
 const inst = (id: string, label: string): OdioInstance => ({
 	id,
@@ -35,18 +37,57 @@ describe('InstanceTopBar — display', () => {
 		expect(screen.getByText('My Pi')).toBeInTheDocument();
 	});
 
-	test('back button calls appState.goToList', async () => {
+	test('back button routes to / when no onback is provided', async () => {
 		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
 		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(appState.goToList).toHaveBeenCalledOnce();
+		expect(push).toHaveBeenCalledWith('/');
+	});
+});
+
+// ── onback override ───────────────────────────────────────────────────────────
+
+describe('InstanceTopBar — onback override', () => {
+	test('back button calls onback when provided, not push', async () => {
+		const onback = vi.fn();
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), onback });
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(onback).toHaveBeenCalledOnce();
+		expect(push).not.toHaveBeenCalled();
+	});
+});
+
+// ── transient save button ─────────────────────────────────────────────────────
+
+describe('InstanceTopBar — save button', () => {
+	test('hidden by default', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
+		expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
 	});
 
-	test('back button calls history.back()', async () => {
-		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
-		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
-		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(back).toHaveBeenCalledOnce();
-		back.mockRestore();
+	test('hidden when transient is true but onsave is missing', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), transient: true });
+		expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
+	});
+
+	test('hidden when onsave is provided but transient is false', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), onsave: vi.fn() });
+		expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
+	});
+
+	test('shown when transient and onsave are both provided', () => {
+		render(InstanceTopBar, {
+			displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), transient: true, onsave: vi.fn(),
+		});
+		expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+	});
+
+	test('clicking it calls onsave', async () => {
+		const onsave = vi.fn();
+		render(InstanceTopBar, {
+			displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), transient: true, onsave,
+		});
+		await fireEvent.click(screen.getByRole('button', { name: /save/i }));
+		expect(onsave).toHaveBeenCalledOnce();
 	});
 });
 
