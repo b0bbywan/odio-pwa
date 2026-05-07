@@ -602,7 +602,7 @@ button {
 
 /* Power event screen */
 
-.power-screen {
+.status-screen {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -614,23 +614,23 @@ button {
 	padding: 24px;
 }
 
-.power-screen-icon {
+.status-screen-icon {
 	color: var(--accent);
 	margin-bottom: 4px;
 }
 
-.power-screen-title {
+.status-screen-title {
 	font-size: 1.2rem;
 	font-weight: 700;
 	color: var(--text-primary);
 }
 
-.power-screen-body {
+.status-screen-body {
 	font-size: 0.9rem;
 	color: var(--text-secondary);
 }
 
-.power-screen-actions {
+.status-screen-actions {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
