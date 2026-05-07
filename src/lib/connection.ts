@@ -110,7 +110,12 @@ export function createConnection(
 	// Does NOT affect SSE support state.
 	async function onProbeFailure(err: unknown) {
 		const status = await classifyProbeFailure(err, host, port);
-		if (!destroyed) callbacks.onStatus(status);
+		if (destroyed) return;
+		callbacks.onStatus(status);
+		// CORS means the server is reachable but missing Access-Control-Allow-Origin.
+		// Headers won't appear on their own, retrying just spams the console.
+		// A visibilitychange can still trigger a fresh probe in case config changed.
+		if (status === 'cors') return;
 		scheduleRetry();
 	}
 
