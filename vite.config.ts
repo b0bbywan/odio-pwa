@@ -1,52 +1,11 @@
-import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { version as pkgVersion } from './package.json';
 
-function runDescribe(): string {
-	return execSync('git describe --tags --always --dirty', { stdio: ['ignore', 'pipe', 'ignore'] })
-		.toString()
-		.trim();
-}
-
-function gitDescribe(): string | null {
-	try {
-		let raw = runDescribe();
-		// Vercel ships a shallow clone without tag refs, so describe falls back
-		// to a bare SHA. Fetch tags once and retry so a release commit shows as
-		// just "v0.5.0" instead of "v0.5.0+gSHA".
-		if (raw && /^[0-9a-f]+(-dirty)?$/.test(raw)) {
-			try {
-				execSync('git fetch --tags --depth=1 origin', { stdio: 'ignore' });
-				raw = runDescribe();
-			} catch {}
-		}
-		if (!raw) return null;
-		// v0.3.4 → 0.3.4
-		// v0.3.4-1-g838e075 → 0.3.4+1.g838e075 (semver build-meta)
-		// + optional -dirty suffix on either of the above
-		const tagged = raw.match(/^v?(\d+\.\d+\.\d+)(?:-(\d+)-g([0-9a-f]+))?(-dirty)?$/);
-		if (tagged) {
-			const [, tag, count, sha, dirty] = tagged;
-			const base = count ? `${tag}+${count}.g${sha}` : tag;
-			return dirty ? `${base}.dirty` : base;
-		}
-		// Tag fetch didn't help (network blocked, or HEAD genuinely past the
-		// last reachable tag): pair the bare SHA with the package.json version.
-		const sha = raw.match(/^([0-9a-f]+)(-dirty)?$/);
-		if (sha) return `${pkgVersion}+g${sha[1]}${sha[2] ? '.dirty' : ''}`;
-		return null;
-	} catch {
-		return null;
-	}
-}
-
-const appVersion = process.env.APP_VERSION ?? gitDescribe() ?? pkgVersion;
-
 export default defineConfig({
 	define: {
-		__APP_VERSION__: JSON.stringify(appVersion),
+		__APP_VERSION__: JSON.stringify(pkgVersion),
 	},
 	plugins: [
 		svelte(),
