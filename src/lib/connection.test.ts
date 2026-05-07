@@ -274,15 +274,16 @@ describe('createConnection — visibility change', () => {
 		expect(cb.onStatus).toHaveBeenCalledWith('online');
 	});
 
-	test('does nothing when no retry is pending', async () => {
+	test('forces a fresh attempt even with no retry pending — covers silent SSE drops while backgrounded', async () => {
 		vi.useFakeTimers();
 		const cb = makeCallbacks();
 		createConnection('h', 8080, cb);
 		await drainMicrotasks(); // probe ok → SSE opened, no retry timer
-		cb.onStatus.mockClear();
+		cb.onServerInfo.mockClear();
 		document.dispatchEvent(new Event('visibilitychange'));
 		await drainMicrotasks();
-		expect(cb.onStatus).not.toHaveBeenCalled();
+		// A fresh probe should run, refreshing serverInfo.
+		expect(cb.onServerInfo).toHaveBeenCalled();
 	});
 
 	test('destroy removes the listener', async () => {

@@ -66,12 +66,16 @@ export function createConnection(
 	let sseEverOpened = false;
 	let effectiveUseSSE = options.useSSE ?? true;
 
+	// Mobile browsers commonly drop background SSE silently; always force a
+	// fresh attempt on resume so reconnection doesn't wait for the next
+	// scheduled probe.
 	function onVisibilityChange() {
-		if (document.visibilityState === 'visible' && retryTimer !== null) {
+		if (document.visibilityState !== 'visible' || destroyed) return;
+		if (retryTimer !== null) {
 			clearTimeout(retryTimer);
 			retryTimer = null;
-			attempt();
 		}
+		attempt();
 	}
 	document.addEventListener('visibilitychange', onVisibilityChange);
 
@@ -126,6 +130,12 @@ export function createConnection(
 
 	async function attempt() {
 		if (destroyed) return;
+		// Close any lingering SSE so a re-entered attempt (e.g. visibilitychange
+		// while the stream was open) doesn't double up.
+		if (closeSSE !== null) {
+			closeSSE();
+			closeSSE = null;
+		}
 		// Show 'probing' only on the first attempt — during retries stay 'offline'
 		// to avoid red→yellow flickering on the homepage for a known-down server.
 		if (failingSince === null) callbacks.onStatus('probing');
