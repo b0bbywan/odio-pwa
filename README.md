@@ -39,6 +39,7 @@ Manage multiple odio-api endpoints from a single interface — add instances man
 ## Features
 
 - **Instance management** — add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage
+- **Deep linking** — open an instance directly via `#/i/<host>/<port>?label=<name>` (port and label optional). First-time visits stay in-memory only and prompt to save on exit, so QR codes and shared links don't silently pollute the user's list
 - **Real-time status** — live updates via SSE (`/events`), up to 6 concurrent connections; additional instances fall back to HTTP polling every 30 s
 - **Smart reconnect** — exponential backoff on connection loss (1 s → 30 s cap); gives up after 90 s of consecutive failures
 - **Power event handling** — reboot shows a waiting screen and auto-reloads when the server comes back; poweroff offers to wait or go back to the list immediately; servers without SSE support are detected automatically and use polling only
@@ -82,20 +83,20 @@ npm run check
 ```
 src/
 ├── lib/
-│   ├── types.ts            # OdioServerInfo, OdioInstance, AppView
+│   ├── types.ts            # OdioServerInfo, OdioInstance, PowerEvent
 │   ├── api.ts              # probeInstance(), getInstanceUiUrl()
 │   ├── sse.ts              # connectSSE() — thin EventSource wrapper
 │   ├── connection.ts       # createConnection() — backoff, give-up, SSE/polling
-│   └── state.svelte.ts     # Reactive state (Svelte 5 runes, class pattern)
+│   └── state.svelte.ts     # Reactive state (Svelte 5 runes), instancePath() helper
 ├── components/
 │   ├── InstanceList.svelte    # Discovery screen with card grid
 │   ├── InstanceCard.svelte    # Status indicator, server info, actions
 │   ├── AddInstanceForm.svelte # Add/edit form (host, port, label)
-│   ├── InstanceTopBar.svelte  # Navigation bar with instance switcher
+│   ├── InstanceTopBar.svelte  # Navigation bar with instance switcher + Save button
 │   ├── PowerScreen.svelte     # Full-screen reboot/poweroff state display
-│   ├── InstanceView.svelte    # Iframe embed, power event orchestration
+│   ├── InstanceView.svelte    # Iframe embed, power event orchestration, save prompt
 │   └── ReloadPrompt.svelte    # PWA update toast
-├── App.svelte               # View routing (list ↔ instance)
+├── App.svelte               # Hash routing (svelte-spa-router): / and /i/:host/:port?
 ├── app.css                  # Global styles, dark theme
 └── main.ts                  # App bootstrap
 ```
@@ -103,6 +104,7 @@ src/
 ### Tech stack
 
 - [Svelte 5](https://svelte.dev/) with runes (`$state`, `$derived`, `$effect`)
+- [svelte-spa-router](https://github.com/ItalyPaleAle/svelte-spa-router) for hash-based deep linking
 - [Vite](https://vite.dev/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) with Workbox
 - [Vitest](https://vitest.dev/) + [@testing-library/svelte](https://testing-library.com/docs/svelte-testing-library/intro) for unit and component tests
@@ -129,6 +131,18 @@ The production build outputs to `dist/`. The preview server serves it at `http:/
 3. The app probes `/server` to check if the instance is online
 4. Tap **Connect** on an online instance to load its UI in an iframe
 5. Use the **switch dropdown** in the top bar to jump between instances
+
+### Deep links
+
+You can also open an instance straight from a URL:
+
+```
+https://pwa.odio.love/#/i/<host>[/<port>][?label=<name>]
+```
+
+- `host` is required, `port` defaults to `8018`, `label` is optional
+- Examples: `#/i/192.168.1.10`, `#/i/odio.local/9000?label=Living%20Room`
+- The instance is held in-memory only; a **Save** button appears in the top bar to persist it, and leaving without saving (in-app or browser back) prompts to Save / Don't save / Cancel
 
 ## Technical notes
 
