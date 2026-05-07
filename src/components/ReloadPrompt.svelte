@@ -1,16 +1,15 @@
 <script lang="ts">
-	import { useRegisterSW } from 'virtual:pwa-register/svelte';
+	import type { Writable } from 'svelte/store';
 
-	const { offlineReady, needRefresh, updateServiceWorker } = useRegisterSW({
-		onRegisteredSW(_swUrl: string, registration: ServiceWorkerRegistration | undefined) {
-			if (registration) {
-				setInterval(() => registration.update(), 60 * 60 * 1000);
-			}
-		},
-		onRegisterError(error: unknown) {
-			console.error('SW registration error:', error);
-		},
-	});
+	let {
+		offlineReady,
+		needRefresh,
+		updateServiceWorker,
+	}: {
+		offlineReady: Writable<boolean>;
+		needRefresh: Writable<boolean>;
+		updateServiceWorker: (reloadPage?: boolean) => Promise<void>;
+	} = $props();
 
 	function close() {
 		$offlineReady = false;
