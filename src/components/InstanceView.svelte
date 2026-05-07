@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { push } from 'svelte-spa-router';
+	import { untrack } from 'svelte';
+	import { push, router } from 'svelte-spa-router';
 	import { appState } from '../lib/state.svelte';
 	import { getInstanceUiUrl } from '../lib/api';
 	import type { PowerEvent } from '../lib/types';
 	import InstanceTopBar from './InstanceTopBar.svelte';
 	import PowerScreen from './PowerScreen.svelte';
 	import SavePrompt from './SavePrompt.svelte';
+	import ConnectionStatusScreen from './ConnectionStatusScreen.svelte';
 
 	const DEFAULT_PORT = 8018;
 
@@ -30,13 +31,15 @@
 
 	// Find or transiently add the instance matching the route params. If we
 	// created it and the user neither saved nor discarded, the cleanup removes
-	// it so unsaved hosts don't pile up across route changes.
+	// it so unsaved hosts don't pile up across route changes. The lookup and
+	// the create are untracked so this effect only re-runs when host/port
+	// change, not on every status update of any instance in the array.
 	$effect(() => {
 		if (!host || !Number.isFinite(port)) return;
-		let createdId: string | null = null;
-		if (!appState.findByHostPort(host, port)) {
-			createdId = appState.addInstance(host, port, labelFromUrl, { transient: true });
-		}
+		const createdId = untrack(() => {
+			if (appState.findByHostPort(host, port)) return null;
+			return appState.addInstance(host, port, labelFromUrl, { transient: true });
+		});
 		return () => {
 			if (!createdId) return;
 			if (appState.findById(createdId)?.transient) {
@@ -120,9 +123,12 @@
 		powerEvent = action;
 	}
 
-	// Called by the connection layer after retries are exhausted - treat as poweroff.
+	// Called by the connection layer after retries are exhausted. For an
+	// instance we already reached, treat it as a poweroff so the user can wait.
+	// For a host we never connected to (e.g. a typo'd deep link), the offline
+	// status screen is more honest than "Server is shutting down".
 	function handleGiveUp() {
-		powerEvent = 'poweroff';
+		if (instance?.connectedAt) powerEvent = 'poweroff';
 	}
 
 	function startWaiting() {
@@ -217,10 +223,18 @@
 
 		{#if powerEvent !== null}
 			<PowerScreen event={powerEvent} {waiting} onstartwaiting={startWaiting} ondismiss={dismiss} />
-		{:else}
+		{:else if instance.status === 'online' || instance.status === 'cors'}
 			{#key iframeKey}
 				<iframe src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
 			{/key}
+		{:else}
+			<ConnectionStatusScreen
+				status={instance.status}
+				{displayName}
+				host={instance.host}
+				port={instance.port}
+				onback={handleBack}
+			/>
 		{/if}
 
 		{#if appState.savePromptVisible && instance.transient}

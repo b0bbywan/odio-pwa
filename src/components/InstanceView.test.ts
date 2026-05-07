@@ -73,6 +73,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mockInstance.status = 'online';
 	mockInstance.transient = undefined;
+	mockInstance.connectedAt = undefined;
 	capturedCallbacks.onPowerAction = undefined;
 	capturedCallbacks.onGiveUp = undefined;
 	mockState.savePromptVisible = false;
@@ -193,22 +194,33 @@ describe('InstanceView — poweroff', () => {
 		expect(document.querySelector('iframe')).not.toBeInTheDocument();
 	});
 
-	test('onGiveUp callback triggers the poweroff choice screen', () => {
+	test('onGiveUp callback triggers the poweroff choice screen for a previously-connected instance', () => {
+		mockInstance.connectedAt = Date.now();
 		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onGiveUp?.());
 		expect(screen.getByText('Server is shutting down')).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Wait' })).toBeInTheDocument();
 	});
 
+	test('onGiveUp on a never-connected host stays on the offline screen, no fake "shutting down"', () => {
+		mockInstance.connectedAt = undefined;
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		expect(screen.queryByText('Server is shutting down')).not.toBeInTheDocument();
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+	});
+
 	test('dismiss button routes to /', async () => {
 		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
-		const powerScreen = document.querySelector<HTMLElement>('.power-screen')!;
+		const powerScreen = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
 		expect(push).toHaveBeenCalledWith('/');
 	});
 
 	test('clicking Wait restarts the connection', async () => {
+		mockInstance.connectedAt = Date.now();
 		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onGiveUp?.());
 		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
@@ -235,6 +247,72 @@ describe('InstanceView — cors', () => {
 		mockInstance.status = 'cors';
 		render(InstanceView, defaultParams);
 		expect(appState.connectOne).not.toHaveBeenCalled();
+	});
+
+	test('renders the iframe when status is cors', () => {
+		mockInstance.status = 'cors';
+		render(InstanceView, defaultParams);
+		expect(document.querySelector('iframe')).toBeInTheDocument();
+	});
+});
+
+// ── connection status screen ──────────────────────────────────────────────────
+
+describe('InstanceView — connection status screen', () => {
+	test('shows "Connecting" when status is probing, no iframe', () => {
+		mockInstance.status = 'probing';
+		render(InstanceView, defaultParams);
+		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('shows "Connecting" when status is unknown, no iframe', () => {
+		mockInstance.status = 'unknown';
+		render(InstanceView, defaultParams);
+		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('shows "Server unreachable" when status is offline, no iframe', () => {
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('shows "Browser blocked" when status is blocked, no iframe', () => {
+		mockInstance.status = 'blocked';
+		render(InstanceView, defaultParams);
+		expect(screen.getByText(/Browser blocked/)).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('back button on the Connecting screen routes to /', async () => {
+		mockInstance.status = 'probing';
+		mockInstance.transient = false;
+		render(InstanceView, defaultParams);
+		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
+		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
+		expect(push).toHaveBeenCalledWith('/');
+	});
+
+	test('back button on the offline screen routes to / for a saved instance', async () => {
+		mockInstance.status = 'offline';
+		mockInstance.transient = false;
+		render(InstanceView, defaultParams);
+		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
+		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
+		expect(push).toHaveBeenCalledWith('/');
+	});
+
+	test('back button on the offline screen of a transient instance opens the save prompt', async () => {
+		mockInstance.status = 'offline';
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
+		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
+		expect(mockState.savePromptVisible).toBe(true);
+		expect(push).not.toHaveBeenCalled();
 	});
 });
 
