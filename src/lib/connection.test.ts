@@ -138,6 +138,20 @@ describe('createConnection — probe failure', () => {
 		expect(reachable).not.toHaveBeenCalled();
 	});
 
+	test('does not schedule a retry when probe fails with CORS', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockRejectedValue(new TypeError('Failed to fetch'));
+		vi.mocked(probeReachable).mockResolvedValue(true);
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenCalledWith('cors');
+		await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER_MS + 1_000);
+		// One probe only - no retry, no give-up.
+		expect(probeInstance).toHaveBeenCalledOnce();
+		expect(cb.onGiveUp).not.toHaveBeenCalled();
+	});
+
 	test('retries after backoff on probe failure', async () => {
 		vi.useFakeTimers();
 		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
