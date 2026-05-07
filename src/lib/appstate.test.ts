@@ -31,7 +31,7 @@ function flushPromises(): Promise<void> {
 type CapturedSSE = {
 	host: string;
 	port: number;
-	onOpen: () => Promise<void>;
+	onOpen: () => void;
 	onAlive: () => void;
 	onOffline: () => void;
 	extra?: SSEExtraCallbacks;

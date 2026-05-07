@@ -118,7 +118,7 @@ describe('InstanceView — poweroff', () => {
 	test('dismiss button calls appState.goToList', async () => {
 		render(InstanceView);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
-		const powerScreen = document.querySelector('.power-screen')!;
+		const powerScreen = document.querySelector<HTMLElement>('.power-screen')!;
 		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
 		expect(appState.goToList).toHaveBeenCalledOnce();
 	});
