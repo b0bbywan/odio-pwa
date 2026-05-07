@@ -1,0 +1,24 @@
+# odio-pwa
+
+> Progressive Web App for discovering and controlling odio-api instances on your local network. Manage multiple odio nodes from a single installable interface, with real-time status and one-tap switching.
+
+Built in Svelte 5 with Vite and vite-plugin-pwa. Probes each instance via `/server`, subscribes to live updates via Server-Sent Events (`/events`) with HTTP polling fallback (30 s), and embeds each instance's `/ui` in a full-screen iframe. Multi-arch Docker image published to GHCR for self-hosting.
+
+## What it does
+- Add/edit/delete odio-api instances (IP/hostname + port), persisted in localStorage
+- Real-time status via SSE (up to 6 concurrent), polling fallback for older API versions
+- Smart reconnect with exponential backoff (1 s to 30 s, gives up after 90 s)
+- Power event handling: reboot waits and auto-reloads, poweroff offers wait or back-to-list
+- Quick-switch dropdown to jump between online instances
+- In-app diagnostics for HTTPS/mixed-content edge cases (Firefox, Safari, Chrome 142+)
+
+## Key pages
+- [Live app](https://pwa.odio.love/): hosted instance, installable as a PWA
+- [GitHub repo](https://github.com/b0bbywan/odio-pwa): source, releases, issues
+- [Documentation](https://docs.odio.love/guides/pwa/): full guide, multi-node setup, self-hosting, HTTPS notes
+- [Docker image](https://github.com/b0bbywan/odio-pwa/pkgs/container/odio-pwa): `ghcr.io/b0bbywan/odio-pwa:latest` (linux/amd64, linux/arm64)
+- [odio.love](https://odio.love/): main project site
+- [go-odio-api](https://github.com/b0bbywan/go-odio-api): the API the PWA controls
+
+## Maintainer
+- [b0bbywan](https://github.com/b0bbywan): creator of the odio stack. Senior R&D engineer based in Lille, France, 15 years in tech startups (gaming, SaaS, robotics, IoT).
