@@ -62,7 +62,42 @@
 	let serverWentOffline = $state(false);
 	let waiting = $state(false); // user chose to wait during poweroff
 	let iframeKey = $state(0);
-	let currentSSEId: string | null = null; // plain JS - must not be $state
+
+	function handlePowerAction(action: PowerEvent) {
+		powerEvent = action;
+	}
+
+	// Called by the connection layer after retries are exhausted. For an
+	// instance we already reached, treat it as a poweroff so the user can wait.
+	// For a host we never connected to (e.g. a typo'd deep link), the offline
+	// status screen is more honest than "Server is shutting down".
+	function handleGiveUp() {
+		if (instance?.connectedAt) powerEvent = 'poweroff';
+	}
+
+	const powerCallbacks = { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp };
+
+	// Foreground connection: attach power callbacks while we're on this view,
+	// hand back to the background pool (no callbacks) on unmount or instance
+	// switch. The connection layer skips retries on cors so a missing-headers
+	// server stays idle without spamming probes.
+	let connectedId: string | null = null;
+	$effect(() => {
+		const id = instance?.id;
+		if (!id || id === connectedId) return;
+		connectedId = id;
+		serverWentOffline = false;
+		waiting = false;
+		// A leftover save prompt from a previous instance must not surface here.
+		appState.savePromptVisible = false;
+		appState.connectOne(id, powerCallbacks);
+		return () => {
+			if (connectedId === id) {
+				connectedId = null;
+				appState.connectOne(id);
+			}
+		};
+	});
 
 	// Two-phase detection - reboot always auto-reconnects, poweroff only if user chose to wait.
 	$effect(() => {
@@ -78,65 +113,26 @@
 		}
 	});
 
-	// Status can flip to cors after the first probe (e.g. a transient instance
-	// opened via URL). Drop the keepalive so the give-up timer can't trigger a
-	// misleading poweroff overlay.
-	$effect(() => {
-		if (instance?.status === 'cors' && currentSSEId !== null) {
-			detachSSE();
-		}
-	});
-
-	// Attach/detach SSE in sync with the resolved instance. Re-runs when the
-	// route switches to a different host/port (e.g. via the TopBar switcher).
-	$effect(() => {
-		const id = instance?.id;
-		if (!id) return;
-		if (id === currentSSEId) return;
-		attachSSE(id);
-		return () => {
-			if (currentSSEId === id) detachSSE();
-		};
-	});
-
-	// Trap browser back/forward while a transient instance is open so the user
-	// gets the same Save prompt as the in-app back button. We push a sentinel
-	// entry; popstate then re-arms it and surfaces the dialog instead of
-	// letting the navigation through. On teardown (Save / Don't save / unmount)
-	// we pop the sentinel so the user doesn't have to back through a phantom
-	// history entry to leave.
+	// Trap browser back/forward while a connectable transient instance is open
+	// so the user gets the same Save prompt as the in-app back button. We push
+	// a sentinel entry; popstate then re-arms it and surfaces the dialog
+	// instead of letting the navigation through.
 	$effect(() => {
 		if (!instance?.transient) return;
+		if (instance.status !== 'online' && instance.status !== 'cors') return;
 		history.pushState({ odioGuard: true }, '');
 		function onPopState() {
 			history.pushState({ odioGuard: true }, '');
 			appState.savePromptVisible = true;
 		}
 		window.addEventListener('popstate', onPopState);
-		return () => {
-			window.removeEventListener('popstate', onPopState);
-			if (history.state?.odioGuard) history.back();
-		};
+		return () => window.removeEventListener('popstate', onPopState);
 	});
-
-	function handlePowerAction(action: PowerEvent) {
-		powerEvent = action;
-	}
-
-	// Called by the connection layer after retries are exhausted. For an
-	// instance we already reached, treat it as a poweroff so the user can wait.
-	// For a host we never connected to (e.g. a typo'd deep link), the offline
-	// status screen is more honest than "Server is shutting down".
-	function handleGiveUp() {
-		if (instance?.connectedAt) powerEvent = 'poweroff';
-	}
 
 	function startWaiting() {
 		waiting = true;
 		// Restart retries - give-up may have stopped them (common on mobile after backgrounding)
-		if (currentSSEId !== null) {
-			appState.connectOne(currentSSEId, { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp });
-		}
+		if (connectedId !== null) appState.connectOne(connectedId, powerCallbacks);
 	}
 
 	function dismiss() {
@@ -145,39 +141,18 @@
 		push('/');
 	}
 
-	function attachSSE(id: string) {
-		if (currentSSEId !== null) appState.disconnectOne(currentSSEId);
-		currentSSEId = null;
-		serverWentOffline = false;
-		waiting = false;
-		// CORS blocks the probe but not the iframe - skip the keepalive so the
-		// give-up timer can't trigger a misleading poweroff overlay.
-		if (appState.findById(id)?.status === 'cors') return;
-		currentSSEId = id;
-		appState.connectOne(id, { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp });
-	}
-
-	function detachSSE() {
-		if (currentSSEId !== null) {
-			const id = currentSSEId;
-			currentSSEId = null;
-			// Hand the connection back to the background pool (no power callbacks)
-			// so the list view still shows fresh status after we leave.
-			appState.connectOne(id);
-		}
-	}
-
-	onMount(() => {
-		return () => detachSSE();
-	});
-
 	function switchTo(id: string) {
 		powerEvent = null;
 		appState.openInstance(id);
 	}
 
 	function handleBack() {
-		if (instance?.transient) {
+		// Only prompt to save when the instance is actually connectable - asking
+		// the user to save an unreachable host would be pointless.
+		if (
+			instance?.transient &&
+			(instance.status === 'online' || instance.status === 'cors')
+		) {
 			appState.savePromptVisible = true;
 		} else {
 			push('/');
