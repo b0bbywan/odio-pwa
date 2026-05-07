@@ -243,10 +243,13 @@ describe('InstanceView — poweroff', () => {
 // ── cors ──────────────────────────────────────────────────────────────────────
 
 describe('InstanceView — cors', () => {
-	test('skips the keepalive when status is cors — iframe still loads, probe retries are futile', () => {
+	test('connects with callbacks even when status is cors (probe layer skips retries on its own)', () => {
 		mockInstance.status = 'cors';
 		render(InstanceView, defaultParams);
-		expect(appState.connectOne).not.toHaveBeenCalled();
+		expect(appState.connectOne).toHaveBeenCalledWith('1', {
+			onPowerAction: expect.any(Function),
+			onGiveUp: expect.any(Function),
+		});
 	});
 
 	test('renders the iframe when status is cors', () => {
@@ -305,14 +308,14 @@ describe('InstanceView — connection status screen', () => {
 		expect(push).toHaveBeenCalledWith('/');
 	});
 
-	test('back button on the offline screen of a transient instance opens the save prompt', async () => {
+	test('back button on the offline screen routes to / even for a transient instance', async () => {
 		mockInstance.status = 'offline';
 		mockInstance.transient = true;
 		render(InstanceView, defaultParams);
 		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
-		expect(mockState.savePromptVisible).toBe(true);
-		expect(push).not.toHaveBeenCalled();
+		expect(push).toHaveBeenCalledWith('/');
+		expect(mockState.savePromptVisible).toBe(false);
 	});
 });
 
@@ -357,16 +360,27 @@ describe('InstanceView — transient', () => {
 		expect(mockState.savePromptVisible).toBe(false);
 	});
 
-	test('back button on a transient instance shows the save prompt instead of leaving', async () => {
+	test('back button on a transient online instance shows the save prompt', async () => {
 		mockInstance.transient = true;
+		mockInstance.status = 'online';
 		render(InstanceView, defaultParams);
 		await fireEvent.click(screen.getByTitle('Back to list'));
 		expect(mockState.savePromptVisible).toBe(true);
 		expect(push).not.toHaveBeenCalled();
 	});
 
-	test('browser back (popstate) on a transient instance shows the save prompt', () => {
+	test('back button on a transient offline instance just routes to / (no point saving an unreachable host)', async () => {
 		mockInstance.transient = true;
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(push).toHaveBeenCalledWith('/');
+		expect(mockState.savePromptVisible).toBe(false);
+	});
+
+	test('browser back (popstate) on a transient online instance shows the save prompt', () => {
+		mockInstance.transient = true;
+		mockInstance.status = 'online';
 		render(InstanceView, defaultParams);
 		expect(mockState.savePromptVisible).toBe(false);
 		window.dispatchEvent(new PopStateEvent('popstate'));
@@ -380,26 +394,12 @@ describe('InstanceView — transient', () => {
 		expect(mockState.savePromptVisible).toBe(false);
 	});
 
-	test('pops the sentinel history entry on unmount so no phantom remains', () => {
+	test('browser back is not trapped on a transient offline instance (probe is futile)', () => {
 		mockInstance.transient = true;
-		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
-		const { unmount } = render(InstanceView, defaultParams);
-		// The transient effect pushed our guard.
-		expect(history.state).toEqual({ odioGuard: true });
-		unmount();
-		// Cleanup popped it (history.state reads aren't synchronous in jsdom,
-		// so we verify intent via the spy).
-		expect(back).toHaveBeenCalled();
-		back.mockRestore();
-	});
-
-	test('does not pop on unmount of a non-transient instance', () => {
-		mockInstance.transient = false;
-		const back = vi.spyOn(history, 'back').mockImplementation(() => {});
-		const { unmount } = render(InstanceView, defaultParams);
-		unmount();
-		expect(back).not.toHaveBeenCalled();
-		back.mockRestore();
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		window.dispatchEvent(new PopStateEvent('popstate'));
+		expect(mockState.savePromptVisible).toBe(false);
 	});
 });
 
