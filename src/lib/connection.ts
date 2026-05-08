@@ -66,6 +66,11 @@ export function createConnection(
 	let sseEverOpened = false;
 	let effectiveUseSSE = options.useSSE ?? true;
 
+	// classifyProbeFailure is for first-contact disambiguation. Once we've
+	// reached the server, the browser has obviously permitted the request, so
+	// later failures can't be 'blocked' (mixed content) or 'cors' - just offline.
+	let everOnline = false;
+
 	// Mobile browsers commonly drop background SSE silently; always force a
 	// fresh attempt on resume so reconnection doesn't wait for the next
 	// scheduled probe.
@@ -109,7 +114,7 @@ export function createConnection(
 	// Called when the probe itself fails (server unreachable).
 	// Does NOT affect SSE support state.
 	async function onProbeFailure(err: unknown) {
-		const status = await classifyProbeFailure(err, host, port);
+		const status = everOnline ? 'offline' : await classifyProbeFailure(err, host, port);
 		if (destroyed) return;
 		callbacks.onStatus(status);
 		// CORS means the server is reachable but missing Access-Control-Allow-Origin.
@@ -153,9 +158,10 @@ export function createConnection(
 		}
 		if (destroyed) return;
 
-		// Probe succeeded — reset failure tracking
+		// Probe succeeded - reset failure tracking
 		failingSince = null;
 		backoffMs = BACKOFF_INITIAL_MS;
+		everOnline = true;
 		callbacks.onServerInfo(info);
 		callbacks.onStatus('online');
 

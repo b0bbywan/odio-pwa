@@ -191,6 +191,23 @@ describe('createConnection — probe failure', () => {
 		expect(cb.onGiveUp).toHaveBeenCalledOnce();
 	});
 
+	test('after a successful probe, later failures are offline (no re-classification as blocked/cors)', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // first probe ok → online
+		expect(cb.onStatus).toHaveBeenCalledWith('online');
+		// Server goes down - probe + no-cors both fail.
+		vi.mocked(probeInstance).mockRejectedValue(new TypeError('Failed to fetch'));
+		vi.mocked(probeReachable).mockResolvedValue(false);
+		capturedSSE!.onOpen(); // mark sseEverOpened so onSSEDisconnect emits 'offline' (not the fallback path)
+		capturedSSE!.onOffline(); // SSE drops → schedules a retry probe
+		await vi.advanceTimersByTimeAsync(1_000);
+		// The retry probe failed - must be 'offline', never 'blocked' or 'cors'.
+		expect(cb.onStatus).not.toHaveBeenCalledWith('blocked');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('cors');
+	});
+
 	test('destroy cancels pending retry timer', async () => {
 		vi.useFakeTimers();
 		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
