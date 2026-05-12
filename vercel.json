@@ -1,0 +1,10 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Link", "value": "</sitemap.xml>; rel=\"sitemap\"" }
+      ]
+    }
+  ]
+}
