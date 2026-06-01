@@ -48,6 +48,20 @@ button {
 	font-size: inherit;
 }
 
+/* Links */
+
+a {
+	color: var(--accent);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent);
+	text-underline-offset: 2px;
+	transition: text-decoration-color 0.15s ease, color 0.15s ease;
+}
+
+a:hover {
+	text-decoration-color: var(--accent);
+}
+
 .btn-primary {
 	background: var(--accent);
 	color: #fff;
@@ -190,6 +204,7 @@ button {
 	align-items: center;
 	margin-left: 6px;
 	color: var(--accent-text);
+	text-decoration: none;
 	vertical-align: middle;
 }
 
