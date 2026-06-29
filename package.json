@@ -33,6 +33,6 @@
     "workbox-window": "^7.4.0"
   },
   "dependencies": {
-    "svelte-spa-router": "^5.1.0"
+    "svelte-spa-router": "^5.1.1"
   }
 }
