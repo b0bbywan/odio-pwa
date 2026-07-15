@@ -6,6 +6,12 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
+    ignore:
+      # TypeScript 7 ships as the native (Go) compiler whose npm package is a
+      # thin CLI shim with no JS API, which svelte-check cannot load. Stay on
+      # the 6.x line until svelte-check supports the native compiler.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       dev-dependencies:
         dependency-type: "development"
