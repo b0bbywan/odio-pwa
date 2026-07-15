@@ -14,7 +14,8 @@
   },
   "overrides": {
     "minimatch": ">=10.2.3",
-    "serialize-javascript": ">=7.0.3"
+    "serialize-javascript": ">=7.0.3",
+    "@babel/core": "^7.29.6"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
