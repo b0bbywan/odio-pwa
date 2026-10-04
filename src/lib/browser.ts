@@ -19,3 +19,21 @@ export function detectUnsupportedDesktop(
 	if (/Safari\//.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua)) return 'safari';
 	return null;
 }
+
+// Loopback is a "potentially trustworthy" origin: browsers never treat it as
+// mixed content, so a failure there means nothing is listening.
+function isLoopback(host: string): boolean {
+	const h = host.toLowerCase().replace(/^\[|\]$/g, '');
+	return h === 'localhost' || h.endsWith('.localhost') || h === '::1' || /^127\./.test(h);
+}
+
+// Whether a failed request to this host can be blamed on mixed-content
+// blocking. Chromium exempts private IPs and .local hosts, so on Chromium
+// (and mobile) an unreachable instance is just offline.
+export function blocksMixedContent(
+	host: string,
+	ua: string = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+	protocol: string = typeof location !== 'undefined' ? location.protocol : '',
+): boolean {
+	return detectUnsupportedDesktop(ua, protocol) !== null && !isLoopback(host);
+}
