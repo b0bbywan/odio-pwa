@@ -7,6 +7,11 @@ vi.mock('./api', () => ({ probeInstance: vi.fn(), probeReachable: vi.fn() }));
 import { connectSSE } from './sse';
 import { probeInstance, probeReachable } from './api';
 
+const FIREFOX_DESKTOP =
+	'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
+const CHROME_DESKTOP =
+	'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
 const mockInfo = {
 	hostname: 'raspi',
 	os_platform: 'linux',
@@ -113,9 +118,19 @@ describe('createConnection — probe failure', () => {
 		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'https:')).toBe('cors');
 	});
 
-	test('classifyProbeFailure: TypeError + unreachable + HTTPS → blocked (mixed content)', async () => {
+	test('classifyProbeFailure: TypeError + unreachable + HTTPS on Firefox desktop → blocked (mixed content)', async () => {
 		vi.mocked(probeReachable).mockResolvedValue(false);
-		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'https:')).toBe('blocked');
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'h', 8080, 'https:', FIREFOX_DESKTOP)).toBe('blocked');
+	});
+
+	test('classifyProbeFailure: TypeError + unreachable + HTTPS on Chrome → offline (LAN allowed)', async () => {
+		vi.mocked(probeReachable).mockResolvedValue(false);
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), '192.168.1.24', 8018, 'https:', CHROME_DESKTOP)).toBe('offline');
+	});
+
+	test('classifyProbeFailure: TypeError + unreachable localhost on Firefox → offline (loopback is trusted)', async () => {
+		vi.mocked(probeReachable).mockResolvedValue(false);
+		expect(await classifyProbeFailure(new TypeError('Failed to fetch'), 'localhost', 8018, 'https:', FIREFOX_DESKTOP)).toBe('offline');
 	});
 
 	test('classifyProbeFailure: TypeError + unreachable + HTTP → offline', async () => {

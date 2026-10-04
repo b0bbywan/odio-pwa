@@ -1,6 +1,7 @@
 import type { OdioServerInfo } from './types';
 import { connectSSE } from './sse';
 import { probeInstance, probeReachable } from './api';
+import { blocksMixedContent } from './browser';
 
 const BACKOFF_INITIAL_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
@@ -21,18 +22,19 @@ export interface ConnectionCallbacks {
 // response if the request actually round-tripped — meaning the server is up
 // but missing Access-Control-Allow-Origin. If even no-cors fails, the request
 // was either blocked at the browser layer (mixed content) or the server is
-// genuinely unreachable; we use the page protocol to lean toward 'blocked' on
-// HTTPS and 'offline' on HTTP.
+// genuinely unreachable. Both fail identically, so we only report 'blocked'
+// when this browser is known to block the request (see blocksMixedContent).
 export async function classifyProbeFailure(
 	err: unknown,
 	host: string,
 	port: number,
 	protocol: string = typeof location !== 'undefined' ? location.protocol : '',
+	ua: string = typeof navigator !== 'undefined' ? navigator.userAgent : '',
 ): Promise<'blocked' | 'cors' | 'offline'> {
 	if (!(err instanceof TypeError)) return 'offline';
 	const reachable = await probeReachable(host, port);
 	if (reachable) return 'cors';
-	return protocol === 'https:' ? 'blocked' : 'offline';
+	return blocksMixedContent(host, ua, protocol) ? 'blocked' : 'offline';
 }
 
 /**

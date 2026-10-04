@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { detectUnsupportedDesktop } from './browser';
+import { detectUnsupportedDesktop, blocksMixedContent } from './browser';
 
 const FIREFOX_DESKTOP =
 	'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
@@ -52,5 +52,28 @@ describe('detectUnsupportedDesktop', () => {
 
 	test('empty UA returns null', () => {
 		expect(detectUnsupportedDesktop('', 'https:')).toBe(null);
+	});
+});
+
+describe('blocksMixedContent', () => {
+	test('Firefox/Safari desktop on HTTPS block LAN hosts', () => {
+		expect(blocksMixedContent('192.168.1.24', FIREFOX_DESKTOP, 'https:')).toBe(true);
+		expect(blocksMixedContent('htpc.local', SAFARI_MAC, 'https:')).toBe(true);
+	});
+
+	test('Chromium and mobile never flag (private network exempted)', () => {
+		expect(blocksMixedContent('192.168.1.24', CHROME_DESKTOP, 'https:')).toBe(false);
+		expect(blocksMixedContent('192.168.1.24', EDGE_DESKTOP, 'https:')).toBe(false);
+		expect(blocksMixedContent('192.168.1.24', CHROME_ANDROID, 'https:')).toBe(false);
+	});
+
+	test('loopback is never mixed content', () => {
+		for (const h of ['localhost', 'foo.localhost', '127.0.0.1', '::1', '[::1]']) {
+			expect(blocksMixedContent(h, FIREFOX_DESKTOP, 'https:')).toBe(false);
+		}
+	});
+
+	test('HTTP page never flags', () => {
+		expect(blocksMixedContent('192.168.1.24', FIREFOX_DESKTOP, 'http:')).toBe(false);
 	});
 });
