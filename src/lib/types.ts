@@ -53,3 +53,11 @@ export interface MprisPlayer {
 }
 
 export type PlayerAction = 'play_pause' | 'previous' | 'next';
+
+// One entry of a player.position SSE event (5 s heartbeat while playing).
+// emitted_at is epoch milliseconds.
+export interface PlayerPosition {
+	bus_name: string;
+	position: number;
+	emitted_at: number;
+}
