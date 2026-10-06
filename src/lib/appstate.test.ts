@@ -3,12 +3,12 @@ import type { SSEExtraCallbacks } from './sse';
 
 // Mock dependencies before importing AppState
 vi.mock('./sse', () => ({ connectSSE: vi.fn() }));
-vi.mock('./api', () => ({ probeInstance: vi.fn() }));
+vi.mock('./api', () => ({ probeInstance: vi.fn(), fetchPlayers: vi.fn() }));
 vi.mock('svelte-spa-router', () => ({ push: vi.fn() }));
 
 import { AppState, instancePath } from './state.svelte';
 import { connectSSE } from './sse';
-import { probeInstance } from './api';
+import { fetchPlayers, probeInstance } from './api';
 import { push } from 'svelte-spa-router';
 
 // --- helpers ---
@@ -60,6 +60,7 @@ beforeEach(() => {
 	captured = [];
 	setupConnectSSE();
 	vi.mocked(probeInstance).mockResolvedValue(mockServerInfo);
+	vi.mocked(fetchPlayers).mockResolvedValue([]);
 });
 
 // ─── Instance management ────────────────────────────────────────────────────
@@ -507,6 +508,46 @@ describe('onOffline callback', () => {
 		await lastSSE().onOpen(); // SSE was open before dropping
 		lastSSE().onOffline();
 		expect(s.instances[0].status).toBe('offline');
+	});
+});
+
+describe('players', () => {
+	const mpd = {
+		bus_name: 'org.mpris.MediaPlayer2.mpd',
+		identity: 'Music Player Daemon',
+		playback_status: 'Playing' as const,
+		position_updated_at: '2026-10-06T21:42:48.826Z',
+		capabilities: {
+			can_play: true,
+			can_pause: true,
+			can_go_next: false,
+			can_go_previous: true,
+			can_seek: false,
+			can_control: true,
+		},
+	};
+
+	test('fills instance.players from the snapshot and events', async () => {
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises();
+		await lastSSE().onOpen();
+		await flushPromises();
+		expect(s.instances[0].players).toEqual([mpd]);
+		lastSSE().extra!.players!.onRemove(mpd.bus_name);
+		expect(s.instances[0].players).toEqual([]);
+	});
+
+	test('are never persisted', async () => {
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises();
+		await lastSSE().onOpen();
+		await flushPromises();
+		const saved = JSON.parse(localStorage.getItem('odio-instances')!);
+		expect(saved[0].players).toBeUndefined();
 	});
 });
 

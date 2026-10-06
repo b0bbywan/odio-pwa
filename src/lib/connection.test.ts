@@ -2,10 +2,14 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createConnection, classifyProbeFailure, GIVE_UP_AFTER_MS } from './connection';
 
 vi.mock('./sse', () => ({ connectSSE: vi.fn() }));
-vi.mock('./api', () => ({ probeInstance: vi.fn(), probeReachable: vi.fn() }));
+vi.mock('./api', () => ({
+	probeInstance: vi.fn(),
+	probeReachable: vi.fn(),
+	fetchPlayers: vi.fn(),
+}));
 
 import { connectSSE } from './sse';
-import { probeInstance, probeReachable } from './api';
+import { fetchPlayers, probeInstance, probeReachable } from './api';
 
 const FIREFOX_DESKTOP =
 	'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
@@ -344,6 +348,109 @@ describe('createConnection — visibility change', () => {
 		document.dispatchEvent(new Event('visibilitychange'));
 		await drainMicrotasks();
 		expect(cb.onStatus).not.toHaveBeenCalled(); // destroyed connection ignores visibilitychange
+	});
+});
+
+// ── MPRIS players ─────────────────────────────────────────────────────────────
+
+describe('createConnection — players', () => {
+	const mprisInfo = { ...mockInfo, backends: { ...mockInfo.backends, mpris: true } };
+	const mpd = {
+		bus_name: 'org.mpris.MediaPlayer2.mpd',
+		identity: 'Music Player Daemon',
+		playback_status: 'Playing' as const,
+		position: 35_193_000,
+		position_updated_at: '2026-10-06T21:42:48.826Z',
+		capabilities: {
+			can_play: true,
+			can_pause: true,
+			can_go_next: false,
+			can_go_previous: true,
+			can_seek: false,
+			can_control: true,
+		},
+	};
+
+	function sseExtra() {
+		return vi.mocked(connectSSE).mock.calls[0][5];
+	}
+
+	test('mpris backend disabled: no player subscription, no GET /players', async () => {
+		const onPlayers = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPlayers });
+		await flush();
+		expect(sseExtra()?.players).toBeUndefined();
+		await capturedSSE!.onOpen();
+		await flush();
+		expect(fetchPlayers).not.toHaveBeenCalled();
+		expect(onPlayers).not.toHaveBeenCalled();
+	});
+
+	test('no onPlayers callback: no player subscription even with mpris', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(mprisInfo);
+		createConnection('h', 8080, makeCallbacks());
+		await flush();
+		expect(sseExtra()?.players).toBeUndefined();
+		await capturedSSE!.onOpen();
+		expect(fetchPlayers).not.toHaveBeenCalled();
+	});
+
+	test('snapshots /players once SSE is open', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(mprisInfo);
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const onPlayers = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPlayers });
+		await flush();
+		expect(fetchPlayers).not.toHaveBeenCalled();
+		await capturedSSE!.onOpen();
+		await flush();
+		expect(fetchPlayers).toHaveBeenCalledWith('h', 8080);
+		expect(onPlayers).toHaveBeenLastCalledWith([mpd]);
+	});
+
+	test('applies player events to the list', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(mprisInfo);
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const onPlayers = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPlayers });
+		await flush();
+		await capturedSSE!.onOpen();
+		await flush();
+		const events = sseExtra()!.players!;
+
+		events.onPosition([{ bus_name: mpd.bus_name, position: 40_000_000, emitted_at: 1791324393825 }]);
+		expect(onPlayers.mock.lastCall![0][0].position).toBe(40_000_000);
+
+		const paused = { ...mpd, playback_status: 'Paused' as const };
+		events.onUpsert(paused);
+		expect(onPlayers).toHaveBeenLastCalledWith([paused]);
+
+		events.onRemove(mpd.bus_name);
+		expect(onPlayers).toHaveBeenLastCalledWith([]);
+	});
+
+	test('clears players when SSE drops', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(mprisInfo);
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const onPlayers = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPlayers });
+		await flush();
+		await capturedSSE!.onOpen();
+		await flush();
+		capturedSSE!.onOffline();
+		expect(onPlayers).toHaveBeenLastCalledWith([]);
+	});
+
+	test('a failed snapshot is non-fatal', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(mprisInfo);
+		vi.mocked(fetchPlayers).mockRejectedValue(new Error('HTTP 500'));
+		const cb = { ...makeCallbacks(), onPlayers: vi.fn() };
+		createConnection('h', 8080, cb);
+		await flush();
+		await capturedSSE!.onOpen();
+		await flush();
+		expect(cb.onPlayers).not.toHaveBeenCalled();
+		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
 	});
 });
 

@@ -23,6 +23,8 @@ export interface OdioInstance {
 	connectedAt?: number;
 	// Loaded from URL params; not persisted to localStorage until the user saves.
 	transient?: boolean;
+	// Live MPRIS players, fed over SSE; never persisted.
+	players?: MprisPlayer[];
 }
 
 export type PowerEvent = 'reboot' | 'poweroff';
