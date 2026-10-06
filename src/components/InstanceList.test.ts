@@ -89,6 +89,24 @@ describe('InstanceList — staggered columns', () => {
 			[['raspodio', '1']],
 		]);
 	});
+
+	test('lists offline instances last', () => {
+		(appState as { instances: OdioInstance[] }).instances = [
+			{ ...inst('1', 'Local'), status: 'offline' },
+			inst('2', 'raspodio'),
+			inst('3', 'htpc'),
+		];
+		render(InstanceList);
+		const slots = screen
+			.getAllByRole('heading', { level: 3 })
+			.map((h) => [h.textContent, h.closest<HTMLElement>('.card-slot')!.style.order]);
+		// DOM order is column by column; `order` is the list order
+		expect(slots).toEqual([
+			['raspodio', '0'],
+			['Local', '2'],
+			['htpc', '1'],
+		]);
+	});
 });
 
 // ── instance cards ────────────────────────────────────────────────────────────

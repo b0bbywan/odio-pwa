@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { appState } from '../lib/state.svelte';
+	import { ListPlacements } from '../lib/placement.svelte';
 	import { fetchLatestRelease, type ReleaseInfo } from '../lib/github';
 	import { detectUnsupportedDesktop } from '../lib/browser';
 	import InstanceCard from './InstanceCard.svelte';
@@ -25,12 +26,22 @@
 			: '',
 	);
 
+	// Offline instances last, frozen until the list is shown again or
+	// "Refresh all" (see ListPlacements).
+	const placements = new ListPlacements();
+	$effect(() => placements.update(appState.instances));
+
+	function refreshAll() {
+		placements.markStale();
+		appState.probeAll();
+	}
+
 	// Two staggered columns on desktop, cards dealt alternately so a card never
 	// jumps column when another one grows (e.g. a player shows up). On mobile
 	// the columns are display: contents and `order` restores the list order.
 	const columns = $derived(
 		[0, 1].map((col) =>
-			appState.instances
+			placements.order(appState.instances)
 				.map((instance, index) => ({ instance, index }))
 				.filter(({ index }) => index % 2 === col),
 		),
@@ -50,7 +61,7 @@
 			<img src="/logo.png" alt="" class="brand-logo" width="44" height="44" />
 			<h1>odio</h1>
 		</div>
-		<button class="btn-icon" onclick={() => appState.probeAll()} title="Refresh all">
+		<button class="btn-icon" onclick={refreshAll} title="Refresh all">
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
 				<polyline points="23 4 23 10 17 10" />
 				<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
