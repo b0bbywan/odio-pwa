@@ -3,13 +3,13 @@ export const ODIO_URL = 'https://odio.love';
 export const DOCS_URL = 'https://docs.odio.love';
 export const REPO_URL = 'https://github.com/b0bbywan/odio-pwa';
 
-export const DEFAULT_TITLE = 'Odio Web App - Multimedia remote for your local odio audio nodes';
+export const DEFAULT_TITLE = 'Odio Web App - Multimedia remote for your local odio nodes';
 
 export const DEFAULT_DESCRIPTION =
-  'Open-source multimedia remote to discover and control your local odio audio nodes. Installable PWA, real-time status, multi-node switching. Free, no account, no telemetry.';
+  'Open-source multimedia remote to discover and control your local odio nodes. Installable PWA, real-time status, multi-node switching. Free, no account, no telemetry.';
 
 export const SHORT_DESCRIPTION =
-  'Open-source multimedia remote to discover and control your local odio audio nodes. Installable PWA, real-time status, multi-node switching.';
+  'Open-source multimedia remote to discover and control your local odio nodes. Installable PWA, real-time status, multi-node switching.';
 
 export const OG_IMAGE = `${SITE_URL}/logo.png`;
 export const OG_IMAGE_ALT = 'odio logo';
@@ -82,7 +82,7 @@ export function buildSiteSchema({ version }: BuildSiteSchemaArgs) {
         name: 'Odio Web App',
         url: `${SITE_URL}/`,
         description:
-          'Progressive Web App to discover and control your local odio audio nodes. Add multiple nodes, see live status over Server-Sent Events, switch between them with one tap, install to your home screen.',
+          'Progressive Web App to discover and control your local odio nodes. Add multiple nodes, see live status over Server-Sent Events, switch between them with one tap, install to your home screen.',
         applicationCategory: 'MultimediaApplication',
         applicationSubCategory: 'Multimedia Remote',
         operatingSystem: 'Any (Progressive Web App)',
