@@ -65,6 +65,32 @@ describe('InstanceList — toolbar', () => {
 	});
 });
 
+// ── staggered columns ─────────────────────────────────────────────────────────
+
+describe('InstanceList — staggered columns', () => {
+	test('deals cards alternately and keeps the list order through `order`', () => {
+		(appState as { instances: OdioInstance[] }).instances = [
+			inst('1', 'Local'),
+			inst('2', 'raspodio'),
+			inst('3', 'htpc'),
+		];
+		const { container } = render(InstanceList);
+		const columns = [...container.querySelectorAll('.card-column')].map((col) =>
+			[...col.querySelectorAll('.card-slot')].map((slot) => [
+				slot.querySelector('h3')!.textContent,
+				(slot as HTMLElement).style.order,
+			]),
+		);
+		expect(columns).toEqual([
+			[
+				['Local', '0'],
+				['htpc', '2'],
+			],
+			[['raspodio', '1']],
+		]);
+	});
+});
+
 // ── instance cards ────────────────────────────────────────────────────────────
 
 describe('InstanceList — instance cards', () => {
