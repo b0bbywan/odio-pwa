@@ -160,6 +160,9 @@ export class AppState {
 			},
 			onGiveUp: () => this.foregroundCallbacks.get(id)?.onGiveUp?.(),
 			onPowerAction: (action) => this.foregroundCallbacks.get(id)?.onPowerAction?.(action),
+			onPlayers: (players) => {
+				inst.players = players;
+			},
 		});
 		this.sseConnections.set(id, destroy);
 	}

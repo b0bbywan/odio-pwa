@@ -1,7 +1,8 @@
-import type { OdioServerInfo } from './types';
-import { connectSSE } from './sse';
-import { probeInstance, probeReachable } from './api';
+import type { MprisPlayer, OdioServerInfo } from './types';
+import { connectSSE, type PlayerEventCallbacks } from './sse';
+import { fetchPlayers, probeInstance, probeReachable } from './api';
 import { blocksMixedContent } from './browser';
+import { applyPositions, removePlayer, upsertPlayer } from './players';
 
 const BACKOFF_INITIAL_MS = 1_000;
 const BACKOFF_MAX_MS = 30_000;
@@ -12,6 +13,9 @@ export interface ConnectionCallbacks {
 	onServerInfo(info: OdioServerInfo): void;
 	onGiveUp(): void;
 	onPowerAction?(action: 'reboot' | 'poweroff'): void;
+	// Full player list after every change. Only fed over SSE, and only when
+	// the instance has the mpris backend (GET /players 404s otherwise).
+	onPlayers?(players: MprisPlayer[]): void;
 }
 
 // fetch() throws TypeError for network-layer failures (mixed-content blocked,
@@ -72,6 +76,17 @@ export function createConnection(
 	// reached the server, the browser has obviously permitted the request, so
 	// later failures can't be 'blocked' (mixed content) or 'cors' - just offline.
 	let everOnline = false;
+
+	let players: MprisPlayer[] = [];
+	function setPlayers(next: MprisPlayer[]) {
+		players = next;
+		callbacks.onPlayers?.(next);
+	}
+	const playerEvents: PlayerEventCallbacks = {
+		onUpsert: (p) => setPlayers(upsertPlayer(players, p)),
+		onRemove: (busName) => setPlayers(removePlayer(players, busName)),
+		onPosition: (updates) => setPlayers(applyPositions(players, updates)),
+	};
 
 	// Mobile browsers commonly drop background SSE silently; always force a
 	// fresh attempt on resume so reconnection doesn't wait for the next
@@ -137,6 +152,8 @@ export function createConnection(
 		closeSSE?.();
 		closeSSE = null;
 		if (wasOpen && !destroyed) callbacks.onStatus('offline');
+		// No more events: don't leave a stale "now playing" behind.
+		if (players.length > 0 && !destroyed) setPlayers([]);
 		scheduleRetry();
 	}
 
@@ -176,6 +193,8 @@ export function createConnection(
 			return;
 		}
 
+		const withPlayers = !!callbacks.onPlayers && info.backends.mpris;
+
 		closeSSE = connectSSE(
 			host,
 			port,
@@ -185,6 +204,15 @@ export function createConnection(
 				failingSince = null;
 				backoffMs = BACKOFF_INITIAL_MS;
 				callbacks.onStatus('online');
+				// Snapshot the players once subscribed, so no event is missed in
+				// between; failure is non-fatal, events will fill the list.
+				if (withPlayers) {
+					fetchPlayers(host, port)
+						.then((list) => {
+							if (!destroyed) setPlayers(list);
+						})
+						.catch(() => { /* SSE is open, keep going */ });
+				}
 				// Refresh server info opportunistically; failure is non-fatal
 				try {
 					const fresh = await probeInstance(host, port);
@@ -195,7 +223,10 @@ export function createConnection(
 				if (!destroyed) callbacks.onStatus('online');
 			},
 			onSSEDisconnect,
-			{ onPowerAction: callbacks.onPowerAction },
+			{
+				onPowerAction: callbacks.onPowerAction,
+				players: withPlayers ? playerEvents : undefined,
+			},
 		);
 	}
 
