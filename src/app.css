@@ -257,6 +257,11 @@ a:hover {
 	margin-bottom: 16px;
 }
 
+/* Mobile: columns vanish, slots become flex items of .card-grid ordered by `order` */
+.card-column {
+	display: contents;
+}
+
 .add-section {
 	margin-top: 8px;
 }
@@ -609,9 +614,18 @@ a:hover {
 	}
 
 	.card-grid {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
+		flex-direction: row;
+		align-items: flex-start;
 		gap: 16px;
+	}
+
+	.card-column {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		flex: 1;
+		/* a card's nowrap content (now playing) must not widen its column */
+		min-width: 0;
 	}
 }
 

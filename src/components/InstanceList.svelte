@@ -25,6 +25,17 @@
 			: '',
 	);
 
+	// Two staggered columns on desktop, cards dealt alternately so a card never
+	// jumps column when another one grows (e.g. a player shows up). On mobile
+	// the columns are display: contents and `order` restores the list order.
+	const columns = $derived(
+		[0, 1].map((col) =>
+			appState.instances
+				.map((instance, index) => ({ instance, index }))
+				.filter(({ index }) => index % 2 === col),
+		),
+	);
+
 	onMount(() => {
 		fetchLatestRelease(__APP_VERSION__).then((latest) => {
 			if (latest) update = latest;
@@ -68,8 +79,14 @@
 	{/if}
 
 	<div class="card-grid">
-		{#each appState.instances as instance (instance.id)}
-			<InstanceCard {instance} />
+		{#each columns as column}
+			<div class="card-column">
+				{#each column as { instance, index } (instance.id)}
+					<div class="card-slot" style:order={index}>
+						<InstanceCard {instance} />
+					</div>
+				{/each}
+			</div>
 		{/each}
 	</div>
 
