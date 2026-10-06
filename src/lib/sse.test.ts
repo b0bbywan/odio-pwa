@@ -124,6 +124,70 @@ describe('connectSSE — power.action event', () => {
 	});
 });
 
+describe('connectSSE — player events', () => {
+	const player = {
+		bus_name: 'org.mpris.MediaPlayer2.mpd',
+		identity: 'Music Player Daemon',
+		playback_status: 'Playing',
+	};
+
+	function playerCallbacks() {
+		return { onUpsert: vi.fn(), onRemove: vi.fn(), onPosition: vi.fn() };
+	}
+
+	test('subscribes to player.* types when player callbacks are provided', () => {
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn(), { players: playerCallbacks() });
+		expect(lastES().url).toContain(
+			'player.added,player.updated,player.removed,player.position',
+		);
+	});
+
+	test('does not subscribe to player.* types without callbacks', () => {
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn());
+		expect(lastES().url).not.toContain('player.');
+	});
+
+	test.each(['player.added', 'player.updated'])('%s unwraps the envelope', (type) => {
+		const players = playerCallbacks();
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn(), { players });
+		lastES().emit(type, JSON.stringify({ data: player, emitted_at: 1791324393825 }));
+		expect(players.onUpsert).toHaveBeenCalledWith(player);
+	});
+
+	test('player.removed passes the bus name', () => {
+		const players = playerCallbacks();
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn(), { players });
+		lastES().emit('player.removed', JSON.stringify({ bus_name: player.bus_name }));
+		expect(players.onRemove).toHaveBeenCalledWith(player.bus_name);
+	});
+
+	test('player.position passes the updates', () => {
+		const players = playerCallbacks();
+		const updates = [
+			{
+				bus_name: player.bus_name,
+				emitted_at: 1791324393825,
+				position: 1456704000,
+				track_id: '/org/mpris/MediaPlayer2/Track/3',
+			},
+		];
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn(), { players });
+		lastES().emit('player.position', JSON.stringify(updates));
+		expect(players.onPosition).toHaveBeenCalledWith(updates);
+	});
+
+	test('ignores malformed player data', () => {
+		const players = playerCallbacks();
+		connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn(), { players });
+		for (const type of ['player.updated', 'player.removed', 'player.position']) {
+			expect(() => lastES().emit(type, 'not-json')).not.toThrow();
+		}
+		expect(players.onUpsert).not.toHaveBeenCalled();
+		expect(players.onRemove).not.toHaveBeenCalled();
+		expect(players.onPosition).not.toHaveBeenCalled();
+	});
+});
+
 describe('connectSSE — cleanup', () => {
 	test('returned function closes the EventSource', () => {
 		const cleanup = connectSSE('host', 8080, vi.fn(), vi.fn(), vi.fn());
