@@ -1,4 +1,4 @@
-import type { OdioServerInfo } from './types';
+import type { MprisPlayer, OdioServerInfo, PlayerAction } from './types';
 
 export async function probeInstance(
 	host: string,
@@ -44,4 +44,35 @@ export async function probeReachable(
 
 export function getInstanceUiUrl(host: string, port: number): string {
 	return `http://${host}:${port}/ui`;
+}
+
+export async function fetchPlayers(host: string, port: number): Promise<MprisPlayer[]> {
+	const res = await fetch(`http://${host}:${port}/players`);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return (await res.json()) as MprisPlayer[];
+}
+
+// Bodyless POST: a CORS "simple request", so no preflight. odio-api answers 202.
+export async function sendPlayerAction(
+	host: string,
+	port: number,
+	busName: string,
+	action: PlayerAction,
+): Promise<void> {
+	const res = await fetch(
+		`http://${host}:${port}/players/${encodeURIComponent(busName)}/${action}`,
+		{ method: 'POST' },
+	);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+// The cover path is stable per player, so the art URL rides along as a
+// cache-buster (odio-api ignores the query) to refresh the image on track change.
+export function getPlayerCoverUrl(
+	host: string,
+	port: number,
+	busName: string,
+	artUrl: string,
+): string {
+	return `http://${host}:${port}/players/${encodeURIComponent(busName)}/cover?art=${encodeURIComponent(artUrl)}`;
 }

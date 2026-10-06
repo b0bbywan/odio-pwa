@@ -26,3 +26,30 @@ export interface OdioInstance {
 }
 
 export type PowerEvent = 'reboot' | 'poweroff';
+
+export type PlaybackStatus = 'Playing' | 'Paused' | 'Stopped';
+
+export interface MprisCapabilities {
+	can_play: boolean;
+	can_pause: boolean;
+	can_go_next: boolean;
+	can_go_previous: boolean;
+	can_seek: boolean;
+	can_control: boolean;
+}
+
+// Subset of odio-api's MPRIS player, as served by GET /players and the
+// player.* SSE events. position and mpris:length are in microseconds;
+// position was sampled at position_updated_at.
+export interface MprisPlayer {
+	bus_name: string;
+	identity: string;
+	playback_status: PlaybackStatus;
+	position?: number;
+	position_updated_at: string;
+	rate?: number;
+	metadata?: Record<string, string>;
+	capabilities: MprisCapabilities;
+}
+
+export type PlayerAction = 'play_pause' | 'previous' | 'next';
