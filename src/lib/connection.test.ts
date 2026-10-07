@@ -6,10 +6,11 @@ vi.mock('./api', () => ({
 	probeInstance: vi.fn(),
 	probeReachable: vi.fn(),
 	fetchPlayers: vi.fn(),
+	fetchPowerCapabilities: vi.fn(),
 }));
 
 import { connectSSE } from './sse';
-import { fetchPlayers, probeInstance, probeReachable } from './api';
+import { fetchPlayers, fetchPowerCapabilities, probeInstance, probeReachable } from './api';
 
 const FIREFOX_DESKTOP =
 	'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
@@ -451,6 +452,70 @@ describe('createConnection — players', () => {
 		await flush();
 		expect(cb.onPlayers).not.toHaveBeenCalled();
 		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
+	});
+});
+
+// ── power capabilities ────────────────────────────────────────────────────────
+
+describe('createConnection — power capabilities', () => {
+	const powerInfo = { ...mockInfo, backends: { ...mockInfo.backends, power: true } };
+	const caps = { reboot: true, power_off: true };
+
+	beforeEach(() => {
+		vi.mocked(fetchPowerCapabilities).mockResolvedValue(caps);
+	});
+
+	test('power backend disabled: no GET /power', async () => {
+		const onPowerCapabilities = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPowerCapabilities });
+		await flush();
+		expect(fetchPowerCapabilities).not.toHaveBeenCalled();
+	});
+
+	test('fetches /power once the server is reached', async () => {
+		vi.mocked(probeInstance).mockResolvedValue(powerInfo);
+		const onPowerCapabilities = vi.fn();
+		createConnection('h', 8080, { ...makeCallbacks(), onPowerCapabilities });
+		await flush();
+		expect(fetchPowerCapabilities).toHaveBeenCalledWith('h', 8080);
+		expect(onPowerCapabilities).toHaveBeenCalledWith(caps);
+	});
+
+	test('fetched once across steady-state probes', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockResolvedValue(powerInfo);
+		createConnection('h', 8080, { ...makeCallbacks(), onPowerCapabilities: vi.fn() }, {
+			useSSE: false,
+		});
+		await drainMicrotasks();
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(probeInstance).toHaveBeenCalledTimes(2);
+		expect(fetchPowerCapabilities).toHaveBeenCalledOnce();
+	});
+
+	test('fetched again after the server was lost', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockResolvedValue(powerInfo);
+		createConnection('h', 8080, { ...makeCallbacks(), onPowerCapabilities: vi.fn() });
+		await drainMicrotasks();
+		await capturedSSE!.onOpen();
+		capturedSSE!.onOffline();
+		await vi.advanceTimersByTimeAsync(1_000); // first backoff
+		expect(fetchPowerCapabilities).toHaveBeenCalledTimes(2);
+	});
+
+	test('a failed fetch is non-fatal and retried on the next probe', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockResolvedValue(powerInfo);
+		vi.mocked(fetchPowerCapabilities).mockRejectedValueOnce(new Error('HTTP 500'));
+		const cb = { ...makeCallbacks(), onPowerCapabilities: vi.fn() };
+		createConnection('h', 8080, cb, { useSSE: false });
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenLastCalledWith('online');
+		expect(cb.onPowerCapabilities).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(fetchPowerCapabilities).toHaveBeenCalledTimes(2);
+		expect(cb.onPowerCapabilities).toHaveBeenCalledWith(caps);
 	});
 });
 

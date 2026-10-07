@@ -158,6 +158,9 @@ export class AppState {
 				inst.connectedAt = Date.now();
 				saveInstances(this.instances);
 			},
+			onPowerCapabilities: (caps) => {
+				inst.power = caps;
+			},
 			onGiveUp: () => this.foregroundCallbacks.get(id)?.onGiveUp?.(),
 			onPowerAction: (action) => this.foregroundCallbacks.get(id)?.onPowerAction?.(action),
 			onPlayers: (players) => {
@@ -185,6 +188,9 @@ export class AppState {
 				inst.serverInfo = info;
 				inst.connectedAt = Date.now();
 				saveInstances(this.instances);
+			},
+			onPowerCapabilities: (caps) => {
+				inst.power = caps;
 			},
 			onGiveUp: () => {}, // background instances have no power UI
 		}, { useSSE: false });

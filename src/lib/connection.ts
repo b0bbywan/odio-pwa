@@ -1,6 +1,6 @@
-import type { MprisPlayer, OdioServerInfo } from './types';
+import type { MprisPlayer, OdioServerInfo, PowerCapabilities } from './types';
 import { connectSSE, type PlayerEventCallbacks } from './sse';
-import { fetchPlayers, probeInstance, probeReachable } from './api';
+import { fetchPlayers, fetchPowerCapabilities, probeInstance, probeReachable } from './api';
 import { blocksMixedContent } from './browser';
 import { applyPositions, removePlayer, upsertPlayer } from './players';
 
@@ -16,6 +16,8 @@ export interface ConnectionCallbacks {
 	// Full player list after every change. Only fed over SSE, and only when
 	// the instance has the mpris backend (GET /players 404s otherwise).
 	onPlayers?(players: MprisPlayer[]): void;
+	// GET /power, fetched once the server is reached with the power backend.
+	onPowerCapabilities?(caps: PowerCapabilities): void;
 }
 
 // fetch() throws TypeError for network-layer failures (mixed-content blocked,
@@ -77,6 +79,21 @@ export function createConnection(
 	// later failures can't be 'blocked' (mixed content) or 'cors' - just offline.
 	let everOnline = false;
 
+	// Capabilities only change with odio-api's config, so fetch them once per
+	// contact: reset whenever the server is lost, it may come back reconfigured.
+	let powerFetched = false;
+	function fetchPower(info: OdioServerInfo) {
+		if (powerFetched || !callbacks.onPowerCapabilities || !info.backends.power) return;
+		powerFetched = true;
+		fetchPowerCapabilities(host, port)
+			.then((caps) => {
+				if (!destroyed) callbacks.onPowerCapabilities?.(caps);
+			})
+			.catch(() => {
+				powerFetched = false; // non-fatal, retried on the next probe
+			});
+	}
+
 	let players: MprisPlayer[] = [];
 	function setPlayers(next: MprisPlayer[]) {
 		players = next;
@@ -131,6 +148,7 @@ export function createConnection(
 	// Called when the probe itself fails (server unreachable).
 	// Does NOT affect SSE support state.
 	async function onProbeFailure(err: unknown) {
+		powerFetched = false;
 		const status = everOnline ? 'offline' : await classifyProbeFailure(err, host, port);
 		if (destroyed) return;
 		callbacks.onStatus(status);
@@ -151,6 +169,7 @@ export function createConnection(
 		}
 		closeSSE?.();
 		closeSSE = null;
+		powerFetched = false;
 		if (wasOpen && !destroyed) callbacks.onStatus('offline');
 		// No more events: don't leave a stale "now playing" behind.
 		if (players.length > 0 && !destroyed) setPlayers([]);
@@ -183,6 +202,7 @@ export function createConnection(
 		everOnline = true;
 		callbacks.onServerInfo(info);
 		callbacks.onStatus('online');
+		fetchPower(info);
 
 		if (!effectiveUseSSE) {
 			// Probe-only: schedule next probe at the steady-state interval
