@@ -568,6 +568,32 @@ a:hover {
 	color: var(--text-secondary);
 }
 
+.np-progress {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 0.72rem;
+	color: var(--text-secondary);
+	font-variant-numeric: tabular-nums;
+}
+
+.np-bar {
+	flex: 1;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--border);
+	overflow: hidden;
+}
+
+.np-bar-fill {
+	height: 100%;
+	background: var(--accent);
+}
+
+.np-bar-fill.paused {
+	background: var(--text-secondary);
+}
+
 /* Add/Edit Form */
 
 .add-form {
