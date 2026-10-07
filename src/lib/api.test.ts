@@ -1,10 +1,12 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import {
 	fetchPlayers,
+	fetchPowerCapabilities,
 	getInstanceUiUrl,
 	getPlayerCoverUrl,
 	probeInstance,
 	sendPlayerAction,
+	sendPowerAction,
 } from './api';
 
 describe('getInstanceUiUrl', () => {
@@ -121,6 +123,46 @@ describe('sendPlayerAction', () => {
 		await expect(
 			sendPlayerAction('raspodio.local', 8018, 'org.mpris.MediaPlayer2.mpd', 'next'),
 		).rejects.toThrow('HTTP 500');
+	});
+});
+
+describe('fetchPowerCapabilities', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test('returns the parsed capabilities', async () => {
+		const caps = { reboot: true, power_off: false };
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(caps) }),
+		);
+		expect(await fetchPowerCapabilities('raspodio.local', 8018)).toEqual(caps);
+		expect(fetch).toHaveBeenCalledWith('http://raspodio.local:8018/power');
+	});
+
+	test('throws on non-2xx response', async () => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+		await expect(fetchPowerCapabilities('raspodio.local', 8018)).rejects.toThrow('HTTP 404');
+	});
+});
+
+describe('sendPowerAction', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test('POSTs to the action endpoint', async () => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 202 }));
+		await sendPowerAction('raspodio.local', 8018, 'power_off');
+		expect(fetch).toHaveBeenCalledWith('http://raspodio.local:8018/power/power_off', {
+			method: 'POST',
+		});
+	});
+
+	test('throws when login1 refuses the action', async () => {
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403 }));
+		await expect(sendPowerAction('raspodio.local', 8018, 'reboot')).rejects.toThrow('HTTP 403');
 	});
 });
 

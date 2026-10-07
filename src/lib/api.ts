@@ -1,4 +1,10 @@
-import type { MprisPlayer, OdioServerInfo, PlayerAction } from './types';
+import type {
+	MprisPlayer,
+	OdioServerInfo,
+	PlayerAction,
+	PowerAction,
+	PowerCapabilities,
+} from './types';
 
 export async function probeInstance(
 	host: string,
@@ -63,6 +69,26 @@ export async function sendPlayerAction(
 		`http://${host}:${port}/players/${encodeURIComponent(busName)}/${action}`,
 		{ method: 'POST' },
 	);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+export async function fetchPowerCapabilities(
+	host: string,
+	port: number,
+): Promise<PowerCapabilities> {
+	const res = await fetch(`http://${host}:${port}/power`);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return (await res.json()) as PowerCapabilities;
+}
+
+// Bodyless POST like sendPlayerAction; odio-api answers 202, or 403 when
+// login1 doesn't allow the action.
+export async function sendPowerAction(
+	host: string,
+	port: number,
+	action: PowerAction,
+): Promise<void> {
+	const res = await fetch(`http://${host}:${port}/power/${action}`, { method: 'POST' });
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
