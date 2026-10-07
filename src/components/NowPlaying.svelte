@@ -2,6 +2,7 @@
 	import type { MprisPlayer } from '../lib/types';
 	import { activePlayers } from '../lib/players';
 	import NowPlayingCover from './NowPlayingCover.svelte';
+	import NowPlayingProgress from './NowPlayingProgress.svelte';
 
 	let { host, port, players }: { host: string; port: number; players: MprisPlayer[] } = $props();
 
@@ -65,5 +66,7 @@
 				{/if}
 			</div>
 		</div>
+
+		<NowPlayingProgress {player} />
 	</section>
 {/if}
