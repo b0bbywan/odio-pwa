@@ -95,7 +95,7 @@ describe('fetchPlayers', () => {
 			vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(players) }),
 		);
 		expect(await fetchPlayers('raspodio.local', 8018)).toEqual(players);
-		expect(fetch).toHaveBeenCalledWith('http://raspodio.local:8018/players');
+		expect(vi.mocked(fetch).mock.calls[0][0]).toBe('http://raspodio.local:8018/players');
 	});
 
 	test('throws on non-200 response', async () => {
@@ -138,7 +138,7 @@ describe('fetchPowerCapabilities', () => {
 			vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(caps) }),
 		);
 		expect(await fetchPowerCapabilities('raspodio.local', 8018)).toEqual(caps);
-		expect(fetch).toHaveBeenCalledWith('http://raspodio.local:8018/power');
+		expect(vi.mocked(fetch).mock.calls[0][0]).toBe('http://raspodio.local:8018/power');
 	});
 
 	test('throws on non-2xx response', async () => {

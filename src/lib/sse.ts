@@ -1,4 +1,5 @@
 import type { MprisPlayer, PlayerPosition } from './types';
+import { baseUrl } from './api';
 
 export interface PlayerEventCallbacks {
 	onUpsert: (player: MprisPlayer) => void;
@@ -25,7 +26,7 @@ export function connectSSE(
 	if (extra?.onPowerAction) types.push('power.action');
 	if (extra?.players) types.push(...PLAYER_TYPES);
 
-	const es = new EventSource(`http://${host}:${port}/events?types=${types.join(',')}`);
+	const es = new EventSource(`${baseUrl(host, port)}/events?types=${types.join(',')}`);
 
 	es.addEventListener('open', () => onOpen());
 
