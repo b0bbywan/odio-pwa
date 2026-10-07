@@ -1,5 +1,5 @@
 import type { OdioInstance } from './types';
-import { createConnection } from './connection';
+import { createConnection, type ConnectionCallbacks } from './connection';
 import { isConnectable } from './instance';
 import { push } from 'svelte-spa-router';
 
@@ -138,6 +138,25 @@ export class AppState {
 		push('/');
 	}
 
+	// What both connection modes (SSE and polling) write back to the instance.
+	private instanceCallbacks(
+		inst: OdioInstance,
+	): Pick<ConnectionCallbacks, 'onStatus' | 'onServerInfo' | 'onPowerCapabilities'> {
+		return {
+			onStatus: (status) => {
+				inst.status = status;
+			},
+			onServerInfo: (info) => {
+				inst.serverInfo = info;
+				inst.connectedAt = Date.now();
+				saveInstances(this.instances);
+			},
+			onPowerCapabilities: (caps) => {
+				inst.power = caps;
+			},
+		};
+	}
+
 	// Idempotent for the connection itself: if there's already an SSE up for
 	// this id, only the foreground callbacks are swapped. Pass extras to
 	// register power callbacks (foreground); call without extras to drop
@@ -150,17 +169,7 @@ export class AppState {
 		else this.foregroundCallbacks.delete(id);
 		if (this.sseConnections.has(id)) return;
 		const destroy = createConnection(inst.host, inst.port, {
-			onStatus: (status) => {
-				inst.status = status;
-			},
-			onServerInfo: (info) => {
-				inst.serverInfo = info;
-				inst.connectedAt = Date.now();
-				saveInstances(this.instances);
-			},
-			onPowerCapabilities: (caps) => {
-				inst.power = caps;
-			},
+			...this.instanceCallbacks(inst),
 			onGiveUp: () => this.foregroundCallbacks.get(id)?.onGiveUp?.(),
 			onPowerAction: (action) => this.foregroundCallbacks.get(id)?.onPowerAction?.(action),
 			onPlayers: (players) => {
@@ -181,17 +190,7 @@ export class AppState {
 		if (!inst) return;
 		this.stopPolling(id);
 		const destroy = createConnection(inst.host, inst.port, {
-			onStatus: (status) => {
-				inst.status = status;
-			},
-			onServerInfo: (info) => {
-				inst.serverInfo = info;
-				inst.connectedAt = Date.now();
-				saveInstances(this.instances);
-			},
-			onPowerCapabilities: (caps) => {
-				inst.power = caps;
-			},
+			...this.instanceCallbacks(inst),
 			onGiveUp: () => {}, // background instances have no power UI
 		}, { useSSE: false });
 		this.pollConnections.set(id, destroy);
