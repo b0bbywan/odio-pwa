@@ -103,13 +103,32 @@ a:hover {
 	transition: color 0.2s, background 0.2s;
 }
 
-.btn-icon:hover {
+.btn-icon:hover:not(:disabled) {
 	color: var(--text-primary);
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.btn-icon.danger:hover {
+.btn-icon.danger:hover:not(:disabled) {
 	color: var(--danger);
+}
+
+.btn-icon:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.btn-danger {
+	background: var(--danger);
+	color: #fff;
+	padding: 4px 12px;
+	border-radius: var(--radius);
+	font-weight: 600;
+	transition: opacity 0.2s;
+}
+
+.btn-danger:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
 }
 
 .btn-add {
@@ -307,6 +326,27 @@ a:hover {
 .card-header h3 {
 	font-size: 1.1rem;
 	font-weight: 600;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Power off: icon at the far right of the header, swapped for
+   cancel / confirm buttons while confirming. */
+.power-off {
+	margin-left: auto;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	/* keep the header row as tall as the title */
+	margin-block: -6px;
+}
+
+.power-confirm {
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 
 .status-dot {

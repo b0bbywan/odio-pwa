@@ -3,6 +3,7 @@
 	import { appState } from '../lib/state.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 	import NowPlaying from './NowPlaying.svelte';
+	import PowerOffButton from './PowerOffButton.svelte';
 
 	let { instance }: { instance: OdioInstance } = $props();
 	let editing = $state(false);
@@ -28,6 +29,12 @@
 	const corsDocsHref = 'https://docs.odio.love/guides/pwa/#cors-on-each-node';
 	const lanDocsHref = 'https://docs.odio.love/guides/pwa/#lan-access';
 
+	const canPowerOff = $derived(
+		instance.status === 'online' &&
+			!!instance.serverInfo?.backends.power &&
+			!!instance.power?.power_off,
+	);
+
 	const hasStatusMessage = $derived(
 		instance.status === 'cors' ||
 			instance.status === 'blocked' ||
@@ -41,7 +48,10 @@
 	<article class="instance-card {statusClass}">
 		<div class="card-header">
 			<span class="status-dot"></span>
-			<h3>{displayName}</h3>
+			<h3 title={displayName}>{displayName}</h3>
+			{#if canPowerOff}
+				<PowerOffButton host={instance.host} port={instance.port} name={displayName} />
+			{/if}
 		</div>
 
 		{#if instance.serverInfo}
