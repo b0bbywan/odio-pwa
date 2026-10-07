@@ -359,6 +359,12 @@ a:hover {
 	margin-bottom: 12px;
 }
 
+/* The status message stands in for the server info line (unknown until
+   reached), so keep the same rhythm and card height. */
+.card-address:has(+ .card-status-message) {
+	margin-bottom: 4px;
+}
+
 .card-status-message {
 	color: var(--danger);
 	margin-bottom: 12px;
