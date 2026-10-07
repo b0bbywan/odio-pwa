@@ -29,6 +29,16 @@ export interface OdioInstance {
 
 export type PowerEvent = 'reboot' | 'poweroff';
 
+// GET /power, only served when the power backend is enabled. Fixed at
+// odio-api startup from the login1 capabilities.
+export interface PowerCapabilities {
+	reboot: boolean;
+	power_off: boolean;
+}
+
+// Matches the POST /power/{action} route names (not the SSE event names).
+export type PowerAction = keyof PowerCapabilities;
+
 export type PlaybackStatus = 'Playing' | 'Paused' | 'Stopped';
 
 export interface MprisCapabilities {
