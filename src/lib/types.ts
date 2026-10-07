@@ -25,6 +25,8 @@ export interface OdioInstance {
 	transient?: boolean;
 	// Live MPRIS players, fed over SSE; never persisted.
 	players?: MprisPlayer[];
+	// GET /power when the power backend is up; never persisted.
+	power?: PowerCapabilities;
 }
 
 export type PowerEvent = 'reboot' | 'poweroff';
