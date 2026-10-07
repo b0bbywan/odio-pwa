@@ -6,10 +6,10 @@ export const REPO_URL = 'https://github.com/b0bbywan/odio-pwa';
 export const DEFAULT_TITLE = 'Odio Web App - Multimedia remote for your local odio nodes';
 
 export const DEFAULT_DESCRIPTION =
-  'Open-source multimedia remote to discover and control your local odio nodes. Installable PWA, real-time status, multi-node switching. Free, no account, no telemetry.';
+  "Open-source remote for your odio nodes: see what's playing and control playback on all of them from one screen. Installable PWA, no account, no telemetry.";
 
 export const SHORT_DESCRIPTION =
-  'Open-source multimedia remote to discover and control your local odio nodes. Installable PWA, real-time status, multi-node switching.';
+  "See what's playing and control playback on every odio node of your network from one screen. Open-source, installable PWA.";
 
 export const OG_IMAGE = `${SITE_URL}/logo.png`;
 export const OG_IMAGE_ALT = 'odio logo';
@@ -26,10 +26,14 @@ export const OS_REF: SchemaRef = { '@id': OS_ID };
 
 const FEATURE_LIST = [
   'Discover and add odio nodes by IP or hostname',
+  'Now playing on every node: cover art, title, artist, progress',
+  'Playback controls (play/pause, previous, next) for any MPRIS media player, audio or video',
+  'One tab per active player when a node plays several',
+  'Power off a node from the list, with confirmation',
   'Real-time status via Server-Sent Events with HTTP polling fallback',
   'Smart reconnect with exponential backoff',
   'One-tap switching between online nodes',
-  'Power event handling (reboot wait, poweroff)',
+  'Reboot and power-off handling: wait for the node to come back',
   'Installable as a Progressive Web App',
 ];
 
@@ -38,14 +42,14 @@ const KEYWORDS = [
   'odio web app',
   'odio remote',
   'multimedia remote',
-  'audio streamer remote',
+  'media player remote',
+  'MPRIS remote',
+  'now playing',
   'Raspberry Pi multimedia remote',
-  'Raspberry Pi audio remote',
   'multi-node control',
-  'multi-room audio control',
+  'multi-room media control',
   'Progressive Web App',
   'self-hosted multimedia',
-  'self-hosted audio',
 ];
 
 export interface BuildSiteSchemaArgs {
@@ -82,7 +86,7 @@ export function buildSiteSchema({ version }: BuildSiteSchemaArgs) {
         name: 'Odio Web App',
         url: `${SITE_URL}/`,
         description:
-          'Progressive Web App to discover and control your local odio nodes. Add multiple nodes, see live status over Server-Sent Events, switch between them with one tap, install to your home screen.',
+          "Progressive Web App to discover and control your local odio nodes. See what's playing on each node and control playback, power nodes off, follow their live status over Server-Sent Events, switch between them with one tap, install to your home screen.",
         applicationCategory: 'MultimediaApplication',
         applicationSubCategory: 'Multimedia Remote',
         operatingSystem: 'Any (Progressive Web App)',
