@@ -2,6 +2,11 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import type { OdioInstance, OdioServerInfo } from '../lib/types';
 
+vi.mock('../lib/api', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../lib/api')>()),
+	sendPowerAction: vi.fn(),
+}));
+
 vi.mock('../lib/state.svelte', () => ({
 	appState: {
 		openInstance: vi.fn(),
@@ -14,6 +19,7 @@ vi.mock('../lib/state.svelte', () => ({
 
 import InstanceCard from './InstanceCard.svelte';
 import { appState } from '../lib/state.svelte';
+import { sendPowerAction } from '../lib/api';
 
 const serverInfo: OdioServerInfo = {
 	hostname: 'raspi',
@@ -215,5 +221,63 @@ describe('InstanceCard — inline edit', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 		expect(screen.getByRole('article')).toBeInTheDocument();
 		expect(screen.queryByRole('heading', { name: 'Edit Instance' })).not.toBeInTheDocument();
+	});
+});
+
+// ── power off ─────────────────────────────────────────────────────────────────
+
+describe('InstanceCard — power off', () => {
+	const powerInfo: OdioServerInfo = {
+		...serverInfo,
+		backends: { ...serverInfo.backends, power: true },
+	};
+	const power = { reboot: true, power_off: true };
+
+	test('shown when the power backend allows power off', () => {
+		render(InstanceCard, { instance: { ...base, serverInfo: powerInfo, power } });
+		expect(screen.getByTitle('Power off')).toBeInTheDocument();
+	});
+
+	test('hidden without the power backend', () => {
+		render(InstanceCard, { instance: { ...base, serverInfo, power } });
+		expect(screen.queryByTitle('Power off')).not.toBeInTheDocument();
+	});
+
+	test('hidden when login1 does not allow power off', () => {
+		render(InstanceCard, {
+			instance: { ...base, serverInfo: powerInfo, power: { ...power, power_off: false } },
+		});
+		expect(screen.queryByTitle('Power off')).not.toBeInTheDocument();
+	});
+
+	test('hidden until the capabilities are known', () => {
+		render(InstanceCard, { instance: { ...base, serverInfo: powerInfo } });
+		expect(screen.queryByTitle('Power off')).not.toBeInTheDocument();
+	});
+
+	test('hidden when the instance is not online', () => {
+		render(InstanceCard, {
+			instance: { ...base, status: 'offline', serverInfo: powerInfo, power },
+		});
+		expect(screen.queryByTitle('Power off')).not.toBeInTheDocument();
+	});
+
+	test('confirming keeps the name in the header', async () => {
+		render(InstanceCard, { instance: { ...base, label: 'Salon', serverInfo: powerInfo, power } });
+		await fireEvent.click(screen.getByTitle('Power off'), { detail: 1 });
+		expect(screen.getByRole('alertdialog', { name: 'Power off Salon?' })).toBeInTheDocument();
+		expect(screen.getByRole('heading', { name: 'Salon' })).toBeInTheDocument();
+	});
+
+	test('usable again once the instance went offline and came back', async () => {
+		vi.mocked(sendPowerAction).mockResolvedValue();
+		const instance: OdioInstance = { ...base, serverInfo: powerInfo, power };
+		const { rerender } = render(InstanceCard, { instance });
+		await fireEvent.click(screen.getByTitle('Power off'));
+		await fireEvent.click(screen.getByRole('button', { name: 'Power off' }));
+		expect(screen.getByTitle('Powering off…')).toBeDisabled();
+		await rerender({ instance: { ...instance, status: 'offline' } });
+		await rerender({ instance });
+		expect(screen.getByTitle('Power off')).not.toBeDisabled();
 	});
 });
