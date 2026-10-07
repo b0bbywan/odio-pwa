@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { push } from 'svelte-spa-router';
 	import { appState } from '../lib/state.svelte';
+	import { displayName as nameOf } from '../lib/instance';
 
 	let {
 		displayName,
@@ -69,11 +70,7 @@
 				<div class="switcher-dropdown">
 					{#each appState.connectableInstances as other (other.id)}
 						{#if other.id !== currentId}
-							<button onclick={() => handleSwitch(other.id)}>
-								{other.label ||
-									other.serverInfo?.hostname ||
-									`${other.host}:${other.port}`}
-							</button>
+							<button onclick={() => handleSwitch(other.id)}>{nameOf(other)}</button>
 						{/if}
 					{/each}
 				</div>
