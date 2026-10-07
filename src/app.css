@@ -486,6 +486,57 @@ a:hover {
 	gap: 12px;
 }
 
+.np-cover {
+	width: 64px;
+	height: 64px;
+	flex-shrink: 0;
+	border-radius: 6px;
+	object-fit: cover;
+	display: block;
+	transition: opacity 0.2s;
+}
+
+.np-cover.paused {
+	opacity: 0.6;
+}
+
+.np-cover-btn {
+	flex-shrink: 0;
+	padding: 0;
+	background: none;
+	border-radius: 6px;
+	cursor: zoom-in;
+}
+
+.np-zoom {
+	margin: auto;
+	padding: 0;
+	border: none;
+	background: transparent;
+	max-width: 100vw;
+	max-height: 100vh;
+	cursor: zoom-out;
+}
+
+.np-zoom::backdrop {
+	background: rgba(0, 0, 0, 0.85);
+}
+
+.np-zoom img {
+	display: block;
+	width: min(90vw, 90vh, 640px);
+	height: auto;
+	border-radius: var(--radius);
+}
+
+.np-cover.placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-secondary);
+	color: var(--text-muted);
+}
+
 .np-text {
 	flex: 1;
 	min-width: 0;
