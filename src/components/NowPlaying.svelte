@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MprisPlayer } from '../lib/types';
 	import { activePlayers } from '../lib/players';
+	import NowPlayingControls from './NowPlayingControls.svelte';
 	import NowPlayingCover from './NowPlayingCover.svelte';
 	import NowPlayingProgress from './NowPlayingProgress.svelte';
 
@@ -68,5 +69,7 @@
 		</div>
 
 		<NowPlayingProgress {player} />
+
+		<NowPlayingControls {host} {port} {player} />
 	</section>
 {/if}
