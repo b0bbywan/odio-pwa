@@ -34,11 +34,13 @@
 
 Progressive Web App for discovering and controlling [odio-api](https://github.com/b0bbywan/go-odio-api) instances on your local network.
 
-Manage multiple odio-api endpoints from a single interface — add instances manually, monitor their status, and connect to their embedded web UI via iframe with one-tap switching.
+Manage multiple odio-api endpoints from a single interface: add instances manually, see what's playing on each one and control playback, monitor their status, and connect to their embedded web UI via iframe with one-tap switching.
 
 ## Features
 
-- **Instance management** — add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage
+- **Instance management**: add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage; unreachable instances are listed last
+- **Now playing**: each instance card shows the active MPRIS media player (audio or video): cover art (click to zoom), title, artist, album and progress, with previous / play-pause / next driven by the player's capabilities; one tab per player when several are active
+- **Power off**: a power button in the card header, behind a confirmation, when odio-api's power backend allows it
 - **Deep linking** — open an instance directly via `#/i/<host>/<port>?label=<name>` (port and label optional). First-time visits stay in-memory only and prompt to save on exit, so QR codes and shared links don't silently pollute the user's list
 - **Real-time status** — live updates via SSE (`/events`), up to 6 concurrent connections; additional instances fall back to HTTP polling every 30 s
 - **Smart reconnect** — exponential backoff on connection loss (1 s → 30 s cap); gives up after 90 s of consecutive failures
@@ -83,19 +85,31 @@ npm run check
 ```
 src/
 ├── lib/
-│   ├── types.ts            # OdioServerInfo, OdioInstance, PowerEvent
-│   ├── api.ts              # probeInstance(), getInstanceUiUrl()
-│   ├── sse.ts              # connectSSE() — thin EventSource wrapper
-│   ├── connection.ts       # createConnection() — backoff, give-up, SSE/polling
-│   └── state.svelte.ts     # Reactive state (Svelte 5 runes), instancePath() helper
+│   ├── types.ts               # OdioServerInfo, OdioInstance, MprisPlayer, PowerCapabilities
+│   ├── api.ts                 # odio-api client: /server, /players, /power, cover URLs
+│   ├── sse.ts                 # connectSSE(): thin EventSource wrapper
+│   ├── connection.ts          # createConnection(): backoff, give-up, SSE/polling, players, power
+│   ├── players.ts             # Pure player helpers: upsert, positions, active players, time format
+│   ├── placement.svelte.ts    # Settled list order: unreachable instances last, no jumping
+│   ├── browser.ts             # Mixed-content detection per browser
+│   ├── github.ts              # Latest release check for the update indicator
+│   └── state.svelte.ts        # Reactive state (Svelte 5 runes), instancePath() helper
 ├── components/
-│   ├── InstanceList.svelte    # Discovery screen with card grid
-│   ├── InstanceCard.svelte    # Status indicator, server info, actions
-│   ├── AddInstanceForm.svelte # Add/edit form (host, port, label)
-│   ├── InstanceTopBar.svelte  # Navigation bar with instance switcher + Save button
-│   ├── PowerScreen.svelte     # Full-screen reboot/poweroff state display
-│   ├── InstanceView.svelte    # Iframe embed, power event orchestration, save prompt
-│   └── ReloadPrompt.svelte    # PWA update toast
+│   ├── InstanceList.svelte       # Discovery screen with card grid
+│   ├── InstanceCard.svelte       # Status indicator, server info, now playing, actions
+│   ├── NowPlaying.svelte         # Active player(s): tabs, track text
+│   ├── NowPlayingCover.svelte    # Cover art with fullscreen zoom
+│   ├── NowPlayingProgress.svelte # Progress bar, ticking while playing
+│   ├── NowPlayingControls.svelte # Previous / play-pause / next
+│   ├── PowerOffButton.svelte     # Power-off icon with its inline confirmation
+│   ├── AddInstanceForm.svelte    # Add/edit form (host, port, label)
+│   ├── InstanceTopBar.svelte     # Navigation bar with instance switcher + Save button
+│   ├── InstanceView.svelte       # Iframe embed, power event orchestration, save prompt
+│   ├── ConnectionStatusScreen.svelte # Full-screen connecting / unreachable / blocked state
+│   ├── PowerScreen.svelte        # Full-screen reboot/poweroff state display
+│   ├── SavePrompt.svelte         # Save / Don't save / Cancel dialog for deep-linked instances
+│   └── ReloadPrompt.svelte       # PWA update toast
+├── data/schemas/site.ts      # SEO strings and JSON-LD, injected at build time
 ├── App.svelte               # Hash routing (svelte-spa-router): / and /i/:host/:port?
 ├── app.css                  # Global styles, dark theme
 └── main.ts                  # App bootstrap
@@ -129,8 +143,9 @@ The production build outputs to `dist/`. The preview server serves it at `http:/
 1. Open the app in your browser
 2. Tap **+ Add Instance** and enter the IP/hostname and port (default `8018`) of an odio-api instance
 3. The app probes `/server` to check if the instance is online
-4. Tap **Connect** on an online instance to load its UI in an iframe
-5. Use the **switch dropdown** in the top bar to jump between instances
+4. Online instances show what's playing, with playback controls, and a power button when odio-api allows powering off
+5. Tap **Connect** on an online instance to load its UI in an iframe
+6. Use the **switch dropdown** in the top bar to jump between instances
 
 ### Deep links
 
@@ -152,13 +167,13 @@ odio-pwa uses Server-Sent Events (`/events`) for real-time status updates when t
 
 ### CORS
 
-The status probe (`fetch /server`) and the SSE stream (`fetch /events`) are cross-origin requests. Your odio-api instances must respond with:
+The status probe (`fetch /server`), the SSE stream (`fetch /events`), the player and power endpoints (`/players`, `/power`) are cross-origin requests. Player and power actions are bodyless POSTs, CORS "simple requests" that need no preflight. Your odio-api instances must respond with:
 
 ```
 Access-Control-Allow-Origin: *
 ```
 
-For those using https://odio-pwa.vercel.app, odio-api already support the appropriate header
+For those using https://pwa.odio.love, odio-api already supports the appropriate header
 
 The iframe loading `/ui` does **not** require CORS headers.
 

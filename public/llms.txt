@@ -1,14 +1,17 @@
 # odio-pwa
 
-> Progressive Web App for discovering and controlling odio-api instances on your local network. Manage multiple odio nodes from a single installable interface, with real-time status and one-tap switching.
+> Progressive Web App for discovering and controlling odio-api instances on your local network. See what's playing on every odio node and control playback from a single installable interface, with real-time status and one-tap switching.
 
-Built in Svelte 5 with Vite and vite-plugin-pwa. Probes each instance via `/server`, subscribes to live updates via Server-Sent Events (`/events`) with HTTP polling fallback (30 s), and embeds each instance's `/ui` in a full-screen iframe. Multi-arch Docker image published to GHCR for self-hosting.
+Built in Svelte 5 with Vite and vite-plugin-pwa. Probes each instance via `/server`, subscribes to live updates via Server-Sent Events (`/events`) with HTTP polling fallback (30 s), follows MPRIS media players (`/players`, audio or video) and power capabilities (`/power`), and embeds each instance's `/ui` in a full-screen iframe. Multi-arch Docker image published to GHCR for self-hosting.
 
 ## What it does
 - Add/edit/delete odio-api instances (IP/hostname + port), persisted in localStorage
+- Now playing in each instance card: cover art (zoomable), title, artist, album, progress
+- Playback controls (previous, play/pause, next) driven by each player's MPRIS capabilities; one tab per active player
+- Power off an instance from its card, with confirmation, when odio-api's power backend allows it
 - Real-time status via SSE (up to 6 concurrent), polling fallback for older API versions
 - Smart reconnect with exponential backoff (1 s to 30 s, gives up after 90 s)
-- Power event handling: reboot waits and auto-reloads, poweroff offers wait or back-to-list
+- Power event handling: reboot waits and auto-reloads, power-off offers wait or back-to-list
 - Quick-switch dropdown to jump between online instances
 - In-app diagnostics for HTTPS/mixed-content edge cases (Firefox, Safari, Chrome 142+)
 
