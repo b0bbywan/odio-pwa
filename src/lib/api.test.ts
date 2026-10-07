@@ -8,6 +8,7 @@ import {
 	sendPlayerAction,
 	sendPowerAction,
 } from './api';
+import { mpdPlayer } from '../test/fixtures';
 
 describe('getInstanceUiUrl', () => {
 	test('builds the correct UI URL', () => {
@@ -68,22 +69,7 @@ describe('probeInstance', () => {
 });
 
 describe('fetchPlayers', () => {
-	const players = [
-		{
-			bus_name: 'org.mpris.MediaPlayer2.mpd',
-			identity: 'Music Player Daemon',
-			playback_status: 'Playing',
-			position_updated_at: '2026-10-06T23:42:48.826+02:00',
-			capabilities: {
-				can_play: true,
-				can_pause: true,
-				can_go_next: false,
-				can_go_previous: true,
-				can_seek: false,
-				can_control: true,
-			},
-		},
-	];
+	const players = [mpdPlayer()];
 
 	beforeEach(() => {
 		vi.restoreAllMocks();

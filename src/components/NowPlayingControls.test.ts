@@ -9,21 +9,9 @@ vi.mock('../lib/api', async (importOriginal) => ({
 
 import NowPlayingControls from './NowPlayingControls.svelte';
 import { sendPlayerAction } from '../lib/api';
+import { mpdPlayer } from '../test/fixtures';
 
-const mpd: MprisPlayer = {
-	bus_name: 'org.mpris.MediaPlayer2.mpd',
-	identity: 'Music Player Daemon',
-	playback_status: 'Playing',
-	position_updated_at: '2026-10-06T21:42:48.826Z',
-	capabilities: {
-		can_play: true,
-		can_pause: true,
-		can_go_next: false,
-		can_go_previous: true,
-		can_seek: false,
-		can_control: true,
-	},
-};
+const mpd = mpdPlayer();
 
 function renderWith(player: MprisPlayer) {
 	return render(NowPlayingControls, { host: 'raspodio.local', port: 8018, player });

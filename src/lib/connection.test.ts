@@ -11,6 +11,7 @@ vi.mock('./api', () => ({
 
 import { connectSSE } from './sse';
 import { fetchPlayers, fetchPowerCapabilities, probeInstance, probeReachable } from './api';
+import { mpdPlayer } from '../test/fixtures';
 
 const FIREFOX_DESKTOP =
 	'Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0';
@@ -356,21 +357,7 @@ describe('createConnection — visibility change', () => {
 
 describe('createConnection — players', () => {
 	const mprisInfo = { ...mockInfo, backends: { ...mockInfo.backends, mpris: true } };
-	const mpd = {
-		bus_name: 'org.mpris.MediaPlayer2.mpd',
-		identity: 'Music Player Daemon',
-		playback_status: 'Playing' as const,
-		position: 35_193_000,
-		position_updated_at: '2026-10-06T21:42:48.826Z',
-		capabilities: {
-			can_play: true,
-			can_pause: true,
-			can_go_next: false,
-			can_go_previous: true,
-			can_seek: false,
-			can_control: true,
-		},
-	};
+	const mpd = mpdPlayer();
 
 	function sseExtra() {
 		return vi.mocked(connectSSE).mock.calls[0][5];

@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { connectSSE } from './sse';
+import { mpdPlayer } from '../test/fixtures';
 
 // Minimal EventSource mock — lets tests fire events synchronously
 class MockEventSource {
@@ -125,11 +126,7 @@ describe('connectSSE — power.action event', () => {
 });
 
 describe('connectSSE — player events', () => {
-	const player = {
-		bus_name: 'org.mpris.MediaPlayer2.mpd',
-		identity: 'Music Player Daemon',
-		playback_status: 'Playing',
-	};
+	const player = mpdPlayer();
 
 	function playerCallbacks() {
 		return { onUpsert: vi.fn(), onRemove: vi.fn(), onPosition: vi.fn() };

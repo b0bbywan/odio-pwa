@@ -1,5 +1,4 @@
 import { describe, test, expect } from 'vitest';
-import type { MprisPlayer } from './types';
 import {
 	activePlayers,
 	applyPositions,
@@ -9,40 +8,10 @@ import {
 	trackLength,
 	upsertPlayer,
 } from './players';
+import { mpdPlayer as player, qbzPlayer, snapcastPlayer } from '../test/fixtures';
 
-function player(overrides: Partial<MprisPlayer> = {}): MprisPlayer {
-	return {
-		bus_name: 'org.mpris.MediaPlayer2.mpd',
-		identity: 'Music Player Daemon',
-		playback_status: 'Playing',
-		position: 35_193_000,
-		position_updated_at: '2026-10-06T21:42:48.826Z',
-		rate: 1,
-		metadata: { 'xesam:title': 'Naaman - Coco Wata' },
-		capabilities: {
-			can_play: true,
-			can_pause: true,
-			can_go_next: false,
-			can_go_previous: true,
-			can_seek: false,
-			can_control: true,
-		},
-		...overrides,
-	};
-}
-
-const qbz = player({
-	bus_name: 'org.mpris.MediaPlayer2.com.blitzfc.qbz',
-	identity: 'QBZ',
-	playback_status: 'Paused',
-	metadata: { 'xesam:title': "Tu m'as perdue", 'mpris:length': '194000000' },
-});
-
-const snapcast = player({
-	bus_name: 'org.mpris.MediaPlayer2.snapcast',
-	identity: 'Snapcast client',
-	playback_status: 'Stopped',
-});
+const qbz = qbzPlayer();
+const snapcast = snapcastPlayer();
 
 describe('upsertPlayer', () => {
 	test('appends an unknown player', () => {

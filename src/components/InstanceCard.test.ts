@@ -20,6 +20,7 @@ vi.mock('../lib/state.svelte', () => ({
 import InstanceCard from './InstanceCard.svelte';
 import { appState } from '../lib/state.svelte';
 import { sendPowerAction } from '../lib/api';
+import { mpdPlayer } from '../test/fixtures';
 
 const serverInfo: OdioServerInfo = {
 	hostname: 'raspi',
@@ -173,21 +174,7 @@ describe('InstanceCard — action buttons', () => {
 // ── now playing ───────────────────────────────────────────────────────────────
 
 describe('InstanceCard — now playing', () => {
-	const mpd = {
-		bus_name: 'org.mpris.MediaPlayer2.mpd',
-		identity: 'Music Player Daemon',
-		playback_status: 'Playing' as const,
-		position_updated_at: '2026-10-06T21:42:48.826Z',
-		metadata: { 'xesam:title': 'Naaman - Coco Wata' },
-		capabilities: {
-			can_play: true,
-			can_pause: true,
-			can_go_next: false,
-			can_go_previous: true,
-			can_seek: false,
-			can_control: true,
-		},
-	};
+	const mpd = mpdPlayer();
 
 	test('shows the player block when online with an active player', () => {
 		render(InstanceCard, { instance: { ...base, players: [mpd] } });

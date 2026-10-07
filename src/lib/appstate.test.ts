@@ -10,6 +10,7 @@ import { AppState, instancePath } from './state.svelte';
 import { connectSSE } from './sse';
 import { fetchPlayers, probeInstance } from './api';
 import { push } from 'svelte-spa-router';
+import { mpdPlayer } from '../test/fixtures';
 
 // --- helpers ---
 
@@ -512,20 +513,7 @@ describe('onOffline callback', () => {
 });
 
 describe('players', () => {
-	const mpd = {
-		bus_name: 'org.mpris.MediaPlayer2.mpd',
-		identity: 'Music Player Daemon',
-		playback_status: 'Playing' as const,
-		position_updated_at: '2026-10-06T21:42:48.826Z',
-		capabilities: {
-			can_play: true,
-			can_pause: true,
-			can_go_next: false,
-			can_go_previous: true,
-			can_seek: false,
-			can_control: true,
-		},
-	};
+	const mpd = mpdPlayer();
 
 	test('fills instance.players from the snapshot and events', async () => {
 		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
