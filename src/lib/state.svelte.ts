@@ -1,5 +1,6 @@
 import type { OdioInstance } from './types';
 import { createConnection } from './connection';
+import { isConnectable } from './instance';
 import { push } from 'svelte-spa-router';
 
 const STORAGE_KEY = 'odio-instances';
@@ -69,10 +70,9 @@ export class AppState {
 	// the callbacks instead of tearing down and re-firing the probe.
 	private foregroundCallbacks = new Map<string, InstanceCallbacks>();
 
-	// Instances the user can actually switch to: SSE up, or up-but-no-CORS-headers
-	// (the iframe still loads in that case).
+	// Instances the user can actually switch to.
 	get connectableInstances(): OdioInstance[] {
-		return this.instances.filter((i) => i.status === 'online' || i.status === 'cors');
+		return this.instances.filter((i) => isConnectable(i.status));
 	}
 
 	get sortedInstances(): OdioInstance[] {

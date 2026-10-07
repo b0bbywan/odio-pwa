@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { OdioInstance } from '../lib/types';
 	import { appState } from '../lib/state.svelte';
+	import { displayName as nameOf, isConnectable } from '../lib/instance';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 	import NowPlaying from './NowPlaying.svelte';
 	import PowerOffButton from './PowerOffButton.svelte';
@@ -8,23 +9,7 @@
 	let { instance }: { instance: OdioInstance } = $props();
 	let editing = $state(false);
 
-	const displayName = $derived(
-		instance.label || instance.serverInfo?.hostname || `${instance.host}:${instance.port}`,
-	);
-
-	const statusClass = $derived(
-		instance.status === 'online'
-			? 'status-online'
-			: instance.status === 'offline'
-				? 'status-offline'
-				: instance.status === 'probing'
-					? 'status-probing'
-					: instance.status === 'blocked'
-						? 'status-blocked'
-						: instance.status === 'cors'
-							? 'status-cors'
-							: 'status-unknown',
-	);
+	const displayName = $derived(nameOf(instance));
 
 	const corsDocsHref = 'https://docs.odio.love/guides/pwa/#cors-on-each-node';
 	const lanDocsHref = 'https://docs.odio.love/guides/pwa/#lan-access';
@@ -45,7 +30,7 @@
 {#if editing}
 	<AddInstanceForm editInstance={instance} onclose={() => (editing = false)} />
 {:else}
-	<article class="instance-card {statusClass}">
+	<article class="instance-card status-{instance.status}">
 		<div class="card-header">
 			<span class="status-dot"></span>
 			<h3 title={displayName}>{displayName}</h3>
@@ -94,7 +79,7 @@
 			<button
 				class="btn-primary"
 				onclick={() => appState.openInstance(instance.id)}
-				disabled={instance.status !== 'online' && instance.status !== 'cors'}
+				disabled={!isConnectable(instance.status)}
 			>
 				Connect
 			</button>

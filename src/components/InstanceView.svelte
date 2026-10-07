@@ -3,6 +3,7 @@
 	import { push, router } from 'svelte-spa-router';
 	import { appState } from '../lib/state.svelte';
 	import { getInstanceUiUrl } from '../lib/api';
+	import { displayName as nameOf, isConnectable } from '../lib/instance';
 	import type { PowerEvent } from '../lib/types';
 	import InstanceTopBar from './InstanceTopBar.svelte';
 	import PowerScreen from './PowerScreen.svelte';
@@ -52,11 +53,7 @@
 		host && Number.isFinite(port) ? appState.findByHostPort(host, port) : undefined,
 	);
 	const uiUrl = $derived(instance ? getInstanceUiUrl(instance.host, instance.port) : '');
-	const displayName = $derived(
-		instance?.label ||
-			instance?.serverInfo?.hostname ||
-			(instance ? `${instance.host}:${instance.port}` : ''),
-	);
+	const displayName = $derived(instance ? nameOf(instance) : '');
 
 	let powerEvent = $state<PowerEvent | null>(null);
 	let serverWentOffline = $state(false);
@@ -119,7 +116,7 @@
 	// instead of letting the navigation through.
 	$effect(() => {
 		if (!instance?.transient) return;
-		if (instance.status !== 'online' && instance.status !== 'cors') return;
+		if (!isConnectable(instance.status)) return;
 		history.pushState({ odioGuard: true }, '');
 		function onPopState() {
 			history.pushState({ odioGuard: true }, '');
@@ -149,10 +146,7 @@
 	function handleBack() {
 		// Only prompt to save when the instance is actually connectable - asking
 		// the user to save an unreachable host would be pointless.
-		if (
-			instance?.transient &&
-			(instance.status === 'online' || instance.status === 'cors')
-		) {
+		if (instance?.transient && isConnectable(instance.status)) {
 			appState.savePromptVisible = true;
 		} else {
 			push('/');
@@ -198,7 +192,7 @@
 
 		{#if powerEvent !== null}
 			<PowerScreen event={powerEvent} {waiting} onstartwaiting={startWaiting} ondismiss={dismiss} />
-		{:else if instance.status === 'online' || instance.status === 'cors'}
+		{:else if isConnectable(instance.status)}
 			{#key iframeKey}
 				<iframe src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
 			{/key}

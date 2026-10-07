@@ -1,21 +1,15 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { OdioInstance } from './types';
+import { isConnectable } from './instance';
 
 type Placement = 'top' | 'bottom';
 
 // Which end of the list an instance belongs to once its status is settled;
 // null while it is still unknown or probing.
 function placementOf(status: OdioInstance['status']): Placement | null {
-	switch (status) {
-		case 'online':
-		case 'cors':
-			return 'top';
-		case 'offline':
-		case 'blocked':
-			return 'bottom';
-		default:
-			return null;
-	}
+	if (isConnectable(status)) return 'top';
+	if (status === 'offline' || status === 'blocked') return 'bottom';
+	return null;
 }
 
 /**
