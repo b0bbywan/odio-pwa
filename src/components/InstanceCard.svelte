@@ -2,6 +2,7 @@
 	import type { OdioInstance } from '../lib/types';
 	import { appState } from '../lib/state.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
+	import NowPlaying from './NowPlaying.svelte';
 
 	let { instance }: { instance: OdioInstance } = $props();
 	let editing = $state(false);
@@ -73,6 +74,10 @@
 					{/if}
 				</small>
 			</div>
+		{/if}
+
+		{#if instance.status === 'online' && instance.players?.length}
+			<NowPlaying host={instance.host} port={instance.port} players={instance.players} />
 		{/if}
 
 		<div class="card-actions">
