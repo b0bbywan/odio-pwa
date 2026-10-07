@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MprisPlayer } from '../lib/types';
 	import { activePlayers } from '../lib/players';
+	import NowPlayingCover from './NowPlayingCover.svelte';
 
 	let { host, port, players }: { host: string; port: number; players: MprisPlayer[] } = $props();
 
@@ -53,6 +54,7 @@
 		{/if}
 
 		<div class="np-body">
+			<NowPlayingCover {host} {port} {player} />
 			<div class="np-text">
 				<div class="np-title" title={title}>{title}</div>
 				{#if meta['xesam:artist']}
