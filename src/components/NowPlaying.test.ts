@@ -9,44 +9,11 @@ vi.mock('../lib/api', async (importOriginal) => ({
 
 import NowPlaying from './NowPlaying.svelte';
 import { sendPlayerAction } from '../lib/api';
+import { mpdPlayer, qbzPlayer, snapcastPlayer } from '../test/fixtures';
 
-const mpd: MprisPlayer = {
-	bus_name: 'org.mpris.MediaPlayer2.mpd',
-	identity: 'Music Player Daemon',
-	playback_status: 'Playing',
-	position: 35_193_000,
-	position_updated_at: '2026-10-06T21:42:48.826Z',
-	metadata: {
-		'mpris:artUrl': 'https://example.com/radio.webp',
-		'xesam:album': 'La Grosse Radio Reggae',
-		'xesam:title': 'Naaman - Coco Wata',
-	},
-	capabilities: {
-		can_play: true,
-		can_pause: true,
-		can_go_next: false,
-		can_go_previous: true,
-		can_seek: false,
-		can_control: true,
-	},
-};
-
-const qbz: MprisPlayer = {
-	...mpd,
-	bus_name: 'org.mpris.MediaPlayer2.com.blitzfc.qbz',
-	identity: 'QBZ',
-	playback_status: 'Paused',
-	position: 72_000_000,
-	metadata: {
-		'mpris:length': '194000000',
-		'xesam:album': 'Carnet de NOTES',
-		'xesam:artist': "Les P'tits Yeux",
-		'xesam:title': "Tu m'as perdue",
-	},
-	capabilities: { ...mpd.capabilities, can_go_next: true },
-};
-
-const snapcast: MprisPlayer = { ...mpd, bus_name: 'org.mpris.MediaPlayer2.snapcast', identity: 'Snapcast client', playback_status: 'Stopped' };
+const mpd = mpdPlayer();
+const qbz = qbzPlayer();
+const snapcast = snapcastPlayer();
 
 function renderWith(players: MprisPlayer[]) {
 	return render(NowPlaying, { host: 'raspodio.local', port: 8018, players });

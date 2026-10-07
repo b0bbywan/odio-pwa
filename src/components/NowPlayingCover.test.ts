@@ -2,26 +2,9 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import type { MprisPlayer } from '../lib/types';
 import NowPlayingCover from './NowPlayingCover.svelte';
+import { mpdPlayer } from '../test/fixtures';
 
-const mpd: MprisPlayer = {
-	bus_name: 'org.mpris.MediaPlayer2.mpd',
-	identity: 'Music Player Daemon',
-	playback_status: 'Playing',
-	position_updated_at: '2026-10-06T21:42:48.826Z',
-	metadata: {
-		'mpris:artUrl': 'https://example.com/radio.webp',
-		'xesam:album': 'La Grosse Radio Reggae',
-		'xesam:title': 'Naaman - Coco Wata',
-	},
-	capabilities: {
-		can_play: true,
-		can_pause: true,
-		can_go_next: false,
-		can_go_previous: true,
-		can_seek: false,
-		can_control: true,
-	},
-};
+const mpd = mpdPlayer();
 
 const coverSrc =
 	'http://raspodio.local:8018/players/org.mpris.MediaPlayer2.mpd/cover?art=https%3A%2F%2Fexample.com%2Fradio.webp';

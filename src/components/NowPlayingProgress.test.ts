@@ -1,26 +1,15 @@
 import { describe, test, expect, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
-import type { MprisPlayer } from '../lib/types';
 import NowPlayingProgress from './NowPlayingProgress.svelte';
+import { mpdPlayer } from '../test/fixtures';
 
 const T0 = Date.parse('2026-10-07T20:00:00.000Z');
 
-const track: MprisPlayer = {
-	bus_name: 'org.mpris.MediaPlayer2.mpd',
-	identity: 'Music Player Daemon',
-	playback_status: 'Playing',
+const track = mpdPlayer({
 	position: 65_000_000, // 1:05
 	position_updated_at: new Date(T0).toISOString(),
 	metadata: { 'mpris:length': '200000000' }, // 3:20
-	capabilities: {
-		can_play: true,
-		can_pause: true,
-		can_go_next: true,
-		can_go_previous: true,
-		can_seek: false,
-		can_control: true,
-	},
-};
+});
 
 afterEach(() => {
 	vi.useRealTimers();
