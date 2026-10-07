@@ -1,7 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
-import { version as pkgVersion } from './package.json';
+import pkg from './package.json' with { type: 'json' };
 import {
 	buildSiteSchema,
 	DEFAULT_TITLE,
@@ -10,7 +10,9 @@ import {
 	OG_IMAGE,
 	OG_IMAGE_ALT,
 	SITE_URL,
-} from './src/data/schemas/site';
+} from './src/data/schemas/site.ts';
+
+const pkgVersion = pkg.version;
 
 function buildRobotsTxt(): string {
 	return [
