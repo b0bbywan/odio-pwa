@@ -164,6 +164,41 @@ describe('InstanceCard — action buttons', () => {
 	});
 });
 
+// ── now playing ───────────────────────────────────────────────────────────────
+
+describe('InstanceCard — now playing', () => {
+	const mpd = {
+		bus_name: 'org.mpris.MediaPlayer2.mpd',
+		identity: 'Music Player Daemon',
+		playback_status: 'Playing' as const,
+		position_updated_at: '2026-10-06T21:42:48.826Z',
+		metadata: { 'xesam:title': 'Naaman - Coco Wata' },
+		capabilities: {
+			can_play: true,
+			can_pause: true,
+			can_go_next: false,
+			can_go_previous: true,
+			can_seek: false,
+			can_control: true,
+		},
+	};
+
+	test('shows the player block when online with an active player', () => {
+		render(InstanceCard, { instance: { ...base, players: [mpd] } });
+		expect(screen.getByRole('region', { name: 'Now playing' })).toBeInTheDocument();
+	});
+
+	test('hides it when the instance is not online', () => {
+		render(InstanceCard, { instance: { ...base, status: 'offline', players: [mpd] } });
+		expect(screen.queryByRole('region', { name: 'Now playing' })).not.toBeInTheDocument();
+	});
+
+	test('hides it without players', () => {
+		render(InstanceCard, { instance: base });
+		expect(screen.queryByRole('region', { name: 'Now playing' })).not.toBeInTheDocument();
+	});
+});
+
 // ── inline edit ───────────────────────────────────────────────────────────────
 
 describe('InstanceCard — inline edit', () => {

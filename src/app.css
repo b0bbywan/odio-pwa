@@ -389,6 +389,134 @@ a:hover {
 	flex: 1;
 }
 
+/* Now Playing (inside an instance card) */
+
+.now-playing {
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 10px;
+	margin-bottom: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.np-header {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	color: var(--text-secondary);
+}
+
+.np-eq {
+	display: inline-flex;
+	align-items: flex-end;
+	gap: 2px;
+	height: 10px;
+}
+
+.np-eq span {
+	width: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+}
+
+.np-eq span:nth-child(1) { height: 6px; }
+.np-eq span:nth-child(2) { height: 10px; }
+.np-eq span:nth-child(3) { height: 4px; }
+
+.np-tabs {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+}
+
+.np-tab {
+	min-width: 0;
+	min-height: 36px;
+	padding: 0 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: transparent;
+	color: var(--text-secondary);
+	border: 1px solid var(--border);
+	border-radius: 18px;
+	font-size: 0.8rem;
+	transition: background 0.2s, color 0.2s;
+}
+
+.np-tab[aria-selected='true'] {
+	background: var(--border);
+	color: var(--text-primary);
+	font-weight: 600;
+}
+
+.np-tab > svg,
+.np-dot {
+	flex-shrink: 0;
+}
+
+.np-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--accent);
+}
+
+.np-header {
+	min-width: 0;
+}
+
+.np-label {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.np-body {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.np-text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.np-title,
+.np-artist,
+.np-album {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.np-title {
+	font-weight: 600;
+	font-size: 0.98rem;
+}
+
+.np-artist {
+	font-size: 0.85rem;
+	color: color-mix(in srgb, var(--text-primary) 75%, var(--bg-primary));
+}
+
+.np-album {
+	font-size: 0.8rem;
+	color: var(--text-secondary);
+}
+
 /* Add/Edit Form */
 
 .add-form {
