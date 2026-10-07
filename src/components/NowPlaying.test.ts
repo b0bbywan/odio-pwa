@@ -1,8 +1,14 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import type { MprisPlayer } from '../lib/types';
 
+vi.mock('../lib/api', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../lib/api')>()),
+	sendPlayerAction: vi.fn(),
+}));
+
 import NowPlaying from './NowPlaying.svelte';
+import { sendPlayerAction } from '../lib/api';
 
 const mpd: MprisPlayer = {
 	bus_name: 'org.mpris.MediaPlayer2.mpd',
@@ -46,6 +52,11 @@ function renderWith(players: MprisPlayer[]) {
 	return render(NowPlaying, { host: 'raspodio.local', port: 8018, players });
 }
 
+beforeEach(() => {
+	vi.clearAllMocks();
+	vi.mocked(sendPlayerAction).mockResolvedValue();
+});
+
 describe('NowPlaying — visibility', () => {
 	test('renders nothing when only stopped players exist', () => {
 		renderWith([snapcast]);
@@ -82,9 +93,16 @@ describe('NowPlaying — several active players', () => {
 		expect(screen.getByText('Naaman - Coco Wata')).toBeInTheDocument();
 	});
 
-	test('switching tab shows the other player', async () => {
+	test('switching tab shows and controls the other player', async () => {
 		renderWith([mpd, qbz]);
 		await fireEvent.click(screen.getByRole('tab', { name: /QBZ/ }));
 		expect(screen.getByText("Tu m'as perdue")).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+		expect(sendPlayerAction).toHaveBeenCalledWith(
+			'raspodio.local',
+			8018,
+			'org.mpris.MediaPlayer2.com.blitzfc.qbz',
+			'next',
+		);
 	});
 });
