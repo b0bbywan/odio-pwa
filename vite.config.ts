@@ -133,9 +133,6 @@ export default defineConfig({
 					/^\/llms\.txt$/,
 				],
 			},
-			devOptions: {
-				enabled: true,
-			},
 		}),
 	],
 });
