@@ -653,13 +653,14 @@ a:hover {
 	transition: background 0.2s, color 0.2s;
 }
 
-.np-btn:hover:not(:disabled) {
-	background: rgba(255, 255, 255, 0.08);
+/* Stands in for an unavailable command so the others keep their place. */
+.np-btn-slot {
+	width: 44px;
+	height: 44px;
 }
 
-.np-btn:disabled {
-	opacity: 0.3;
-	cursor: not-allowed;
+.np-btn:hover {
+	background: rgba(255, 255, 255, 0.08);
 }
 
 .np-btn.primary {
@@ -668,7 +669,7 @@ a:hover {
 	color: var(--bg-primary);
 }
 
-.np-btn.primary:hover:not(:disabled) {
+.np-btn.primary:hover {
 	background: var(--accent-hover);
 }
 

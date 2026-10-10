@@ -23,32 +23,56 @@ beforeEach(() => {
 });
 
 describe('NowPlayingControls', () => {
-	test('enables controls from capabilities', () => {
+	test('shows only the commands the player supports', () => {
 		renderWith(mpd);
-		expect(screen.getByRole('button', { name: 'Previous' })).not.toBeDisabled();
-		expect(screen.getByRole('button', { name: 'Pause' })).not.toBeDisabled();
-		expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'Previous' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Next' })).not.toBeInTheDocument();
 	});
 
-	test('disables every control when the player cannot be controlled', () => {
-		renderWith({ ...mpd, capabilities: { ...mpd.capabilities, can_control: false } });
-		for (const name of ['Previous', 'Pause', 'Next']) {
-			expect(screen.getByRole('button', { name })).toBeDisabled();
-		}
+	test('a missing command keeps its slot, so the others stay in place', () => {
+		const { container } = renderWith(mpd);
+		const row = [...container.querySelector('.np-controls')!.children];
+		expect(row.map((el) => el.className)).toEqual(['np-btn', 'np-btn primary', 'np-btn-slot']);
+	});
+
+	test('renders nothing when the player cannot be controlled', () => {
+		const { container } = renderWith({
+			...mpd,
+			capabilities: { ...mpd.capabilities, can_control: false },
+		});
+		expect(container.querySelector('.np-controls')).toBeNull();
+		expect(screen.queryByRole('button')).not.toBeInTheDocument();
+	});
+
+	// A Snapcast client: controllable on paper, but with no command at all.
+	test('renders nothing when no command is available', () => {
+		const { container } = renderWith({
+			...mpd,
+			capabilities: {
+				...mpd.capabilities,
+				can_play: false,
+				can_pause: false,
+				can_go_next: false,
+				can_go_previous: false,
+			},
+		});
+		expect(container.querySelector('.np-controls')).toBeNull();
 	});
 
 	test('offers Play while paused, if the player can play', () => {
 		renderWith({ ...mpd, playback_status: 'Paused' });
-		expect(screen.getByRole('button', { name: 'Play' })).not.toBeDisabled();
+		expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
 	});
 
-	test('disables Play when the player cannot play', () => {
+	test('hides Play when the player cannot play', () => {
 		renderWith({
 			...mpd,
 			playback_status: 'Paused',
 			capabilities: { ...mpd.capabilities, can_play: false },
 		});
-		expect(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+		expect(screen.queryByRole('button', { name: 'Play' })).not.toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Previous' })).toBeInTheDocument();
 	});
 
 	test.each([
