@@ -34,11 +34,12 @@
 
 Progressive Web App for discovering and controlling [odio-api](https://github.com/b0bbywan/go-odio-api) instances on your local network.
 
-Manage multiple odio-api endpoints from a single interface: add instances manually, see what's playing on each one and control playback, monitor their status, and connect to their embedded web UI via iframe with one-tap switching.
+Manage multiple odio-api endpoints from a single interface: add instances manually or scan your network for them, see what's playing on each one and control playback, monitor their status, and connect to their embedded web UI via iframe with one-tap switching.
 
 ## Features
 
 - **Instance management**: add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage; instances playing something are listed first, then paused ones, unreachable ones last
+- **Network scan**: find the odio-api instances on your LAN from an IP, a network with its mask, or nothing at all: the app then scans the network of the instances already online, or looks for yours among common router and ISP defaults
 - **Now playing**: each instance card shows the active MPRIS media player (audio or video): cover art (click to zoom), title, artist, album and progress, with previous / play-pause / next driven by the player's capabilities; one tab per player when several are active
 - **Power off**: a power button in the card header, behind a confirmation, when odio-api's power backend allows it
 - **Deep linking** — open an instance directly via `#/i/<host>/<port>?label=<name>` (port and label optional). First-time visits stay in-memory only and prompt to save on exit, so QR codes and shared links don't silently pollute the user's list
@@ -49,7 +50,7 @@ Manage multiple odio-api endpoints from a single interface: add instances manual
 - **Quick switch** — compact top bar with dropdown to jump between online instances
 - **PWA** — installable, offline-capable app shell, service worker caching
 - **Dark theme** — responsive layout (single column on mobile, grid on desktop)
-- **In-app diagnostics**: Firefox / Safari desktop on HTTPS get a persistent banner and a disabled "+ Add Instance" button; instance cards distinguish *Server unreachable*, *Server reachable: missing CORS headers*, and *Browser blocked (mixed content)* so the user knows what to fix
+- **In-app diagnostics**: Firefox / Safari desktop on HTTPS get a persistent banner and disabled "+ Add Instance" and "Scan network" buttons; instance cards distinguish *Server unreachable*, *Server reachable: missing CORS headers*, and *Browser blocked (mixed content)* so the user knows what to fix
 
 ## Prerequisites
 
@@ -91,6 +92,8 @@ src/
 │   ├── connection.ts          # createConnection(): backoff, give-up, SSE/polling, players, power
 │   ├── players.ts             # Pure player helpers: upsert, positions, active players, time format
 │   ├── placement.svelte.ts    # Settled list order: unreachable instances last, no jumping
+│   ├── scan.ts                # Network scan: target parsing, candidate networks, link and host probes
+│   ├── scanner.svelte.ts      # One scan from target to results: steps, progress, stop
 │   ├── browser.ts             # Mixed-content detection per browser
 │   ├── github.ts              # Latest release check for the update indicator
 │   └── state.svelte.ts        # Reactive state (Svelte 5 runes), instancePath() helper
@@ -103,6 +106,10 @@ src/
 │   ├── NowPlayingControls.svelte # Previous / play-pause / next
 │   ├── PowerOffButton.svelte     # Power-off icon with its inline confirmation
 │   ├── AddInstanceForm.svelte    # Add/edit form (host, port, label)
+│   ├── ScanModal.svelte          # Network scan dialog: summary and actions around a Scanner
+│   ├── ScanForm.svelte           # Scan target and port
+│   ├── ScanProgress.svelte       # Scan steps and progress bar
+│   ├── ScanResults.svelte        # Instances found, with Add or an already-added check
 │   ├── InstanceTopBar.svelte     # Navigation bar with instance switcher + Save button
 │   ├── InstanceView.svelte       # Iframe embed, power event orchestration, save prompt
 │   ├── ConnectionStatusScreen.svelte # Full-screen connecting / unreachable / blocked state
@@ -141,7 +148,7 @@ The production build outputs to `dist/`. The preview server serves it at `http:/
 ## Usage
 
 1. Open the app in your browser
-2. Tap **+ Add Instance** and enter the IP/hostname and port (default `8018`) of an odio-api instance
+2. Tap **+ Add Instance** and enter the IP/hostname and port (default `8018`) of an odio-api instance, or tap **Scan network** to find the instances on your LAN (see [Network scan](#network-scan))
 3. The app probes `/server` to check if the instance is online
 4. Online instances show what's playing, with playback controls, and a power button when odio-api allows powering off
 5. Tap **Connect** on an online instance to load its UI in an iframe
@@ -167,15 +174,33 @@ odio-pwa uses Server-Sent Events (`/events`) for real-time status updates when t
 
 ### CORS
 
-The status probe (`fetch /server`), the SSE stream (`fetch /events`), the player and power endpoints (`/players`, `/power`) are cross-origin requests. Player and power actions are bodyless POSTs, CORS "simple requests" that need no preflight. Your odio-api instances must respond with:
+The status probe (`fetch /server`), the SSE stream (`fetch /events`), the player and power endpoints (`/players`, `/power`) are cross-origin requests. Player and power actions are bodyless POSTs, CORS "simple requests" that need no preflight. Your odio-api instances must allow the PWA's origin:
 
 ```
-Access-Control-Allow-Origin: *
+Access-Control-Allow-Origin: https://your-pwa.example
 ```
 
-For those using https://pwa.odio.love, odio-api already supports the appropriate header
+In odio-api, add that origin to `api.cors.origins` (or `"*"` to allow any). `https://pwa.odio.love` is allowed by default.
 
 The iframe loading `/ui` does **not** require CORS headers.
+
+### Network scan
+
+**Scan network** probes `GET /server` on every host of a target, 48 at a time, and lists the odio-api instances that answer. The target is a single IP or hostname, or a network with its mask (`192.168.1.0/24` or `192.168.1.0/255.255.255.0`), up to a /22.
+
+A browser can't read its own IP or routing table, so with no target the app works out where to look:
+
+1. If an instance of the list is online and was added by IP, its /24 is scanned straight away.
+2. Otherwise around forty networks are checked: the /24 of the instances known but offline, then the defaults of common routers, ISP boxes and hotspots around the world.
+3. If none of them is connected, the rest of `192.168.0.0/16` is swept.
+
+A network counts as connected when a request to one of its hosts fails fast or gets an answer: on a network the device is directly attached to, the OS gives up on an unassigned IP once ARP fails (about 3 s on Linux), while packets to a network that isn't routed are dropped upstream and the request hangs. Each network is judged on two or three hosts, each given 5 s to fail.
+
+Limits:
+
+- Only directly connected networks are found; one behind another router has to be entered by hand.
+- `10.0.0.0/8` and `172.16.0.0/12` are too large to sweep: only a few known defaults are checked there.
+- The scan reads the answer of `/server`, so it only lists instances that allow the PWA's origin (see [CORS](#cors)). Hosts that answer on the port without allowing it are counted, next to the origin to add to their `api.cors.origins`; the browser can't tell whether they are odio-api.
 
 ### PWA
 
@@ -213,7 +238,7 @@ Serving the PWA over plain HTTP on the LAN avoids all of this.
 
 #### In-app feedback
 
-When the PWA detects Firefox or Safari desktop on an HTTPS context, it shows a persistent banner pointing back at this guide and disables the "+ Add Instance" button (no point in adding nodes that cannot be reached).
+When the PWA detects Firefox or Safari desktop on an HTTPS context, it shows a persistent banner pointing back at this guide and disables the "+ Add Instance" and "Scan network" buttons (no point in adding nodes that cannot be reached).
 
 When a probe fails for an existing instance, the card distinguishes three cases by re-probing with `mode: 'no-cors'`:
 
