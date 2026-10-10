@@ -527,6 +527,21 @@ describe('players', () => {
 		expect(s.instances[0].players).toEqual([]);
 	});
 
+	test('are unknown again on a fresh probe, until the new snapshot', async () => {
+		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises();
+		await lastSSE().onOpen();
+		await flushPromises();
+		s.probeOne(s.instances[0].id);
+		expect(s.instances[0].players).toBeUndefined();
+		await flushPromises();
+		await lastSSE().onOpen();
+		await flushPromises();
+		expect(s.instances[0].players).toEqual([mpd]);
+	});
+
 	test('are never persisted', async () => {
 		vi.mocked(fetchPlayers).mockResolvedValue([mpd]);
 		const s = new AppState();
