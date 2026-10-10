@@ -693,19 +693,22 @@ a:hover {
 	font-size: 1.1rem;
 }
 
-.add-form label {
+.add-form label,
+.scan-form label {
 	display: block;
 	margin-bottom: 12px;
 }
 
-.add-form label span {
+.add-form label span,
+.scan-form label span {
 	display: block;
 	font-size: 0.85rem;
 	color: var(--text-secondary);
 	margin-bottom: 4px;
 }
 
-.add-form input {
+.add-form input,
+.scan-form input {
 	width: 100%;
 	padding: 10px 12px;
 	background: var(--bg-input);
@@ -718,11 +721,13 @@ a:hover {
 	transition: border-color 0.2s;
 }
 
-.add-form input:focus {
+.add-form input:focus,
+.scan-form input:focus {
 	border-color: var(--accent);
 }
 
-.add-form input::placeholder {
+.add-form input::placeholder,
+.scan-form input::placeholder {
 	color: var(--text-muted);
 }
 
@@ -835,14 +840,16 @@ a:hover {
 	background: var(--accent-hover);
 }
 
-.save-prompt-backdrop {
+.save-prompt-backdrop,
+.scan-backdrop {
 	position: fixed;
 	inset: 0;
 	background: rgba(0, 0, 0, 0.5);
 	z-index: 20;
 }
 
-.save-prompt {
+.save-prompt,
+.scan-modal {
 	position: fixed;
 	left: 50%;
 	top: 50%;
@@ -868,15 +875,230 @@ a:hover {
 	line-height: 1.4;
 }
 
-.save-prompt-actions {
+.save-prompt-actions,
+.scan-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
 }
 
-.save-prompt-actions .btn-primary {
+.save-prompt-actions .btn-primary,
+.scan-actions .btn-primary {
 	flex: 1;
 	min-width: 90px;
+}
+
+/* Scan network modal */
+
+.scan-modal {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: min(420px, calc(100vw - 32px));
+	max-height: calc(100dvh - 32px);
+	overflow-y: auto;
+}
+
+.scan-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.scan-header h3 {
+	font-size: 1.1rem;
+}
+
+.scan-header .btn-icon {
+	margin: -6px;
+}
+
+.scan-form label:has(+ .scan-hint) {
+	margin-bottom: 4px;
+}
+
+.scan-form input[type='number'] {
+	width: 120px;
+}
+
+.scan-form input[aria-invalid='true'] {
+	border-color: var(--danger);
+}
+
+.scan-hint {
+	font-size: 0.85rem;
+	line-height: 1.4;
+	color: var(--text-secondary);
+	margin-bottom: 12px;
+}
+
+.scan-hint.error {
+	color: var(--danger);
+}
+
+.scan-steps,
+.scan-results {
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.scan-steps li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.scan-steps svg {
+	flex-shrink: 0;
+}
+
+.scan-step-done {
+	color: var(--success);
+}
+
+.scan-step-running {
+	color: var(--warning);
+}
+
+.scan-step-detail {
+	margin-left: auto;
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+}
+
+.scan-progress {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+	font-variant-numeric: tabular-nums;
+}
+
+.scan-progress progress {
+	flex: 1;
+	height: 6px;
+	appearance: none;
+	border: none;
+	border-radius: 3px;
+	background: var(--border);
+	overflow: hidden;
+}
+
+.scan-progress progress::-webkit-progress-bar {
+	background: var(--border);
+}
+
+.scan-progress progress::-webkit-progress-value {
+	background: var(--accent);
+}
+
+.scan-progress progress::-moz-progress-bar {
+	background: var(--accent);
+}
+
+.scan-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 0.85rem;
+	line-height: 1.4;
+	color: var(--text-secondary);
+}
+
+.scan-summary strong {
+	font-size: 1rem;
+	color: var(--text-primary);
+}
+
+.scan-summary.warn strong {
+	color: var(--warning);
+}
+
+.scan-results li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 8px 8px 12px;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+
+.scan-result-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	font-size: 0.85rem;
+	color: var(--text-secondary);
+}
+
+.scan-result-info strong {
+	font-size: 1rem;
+	color: var(--text-primary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Sits where the Add button would be. */
+.scan-added {
+	flex-shrink: 0;
+	margin: 6px 10px;
+}
+
+.scan-added circle {
+	fill: var(--success);
+}
+
+.scan-added polyline {
+	stroke: var(--bg-primary);
+	stroke-width: 2.5;
+}
+
+.scan-blocked {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 0.85rem;
+	line-height: 1.4;
+	color: var(--text-secondary);
+}
+
+.scan-blocked p {
+	display: flex;
+	gap: 8px;
+}
+
+.scan-blocked svg {
+	flex-shrink: 0;
+	color: var(--warning);
+}
+
+.scan-blocked code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	color: var(--text-primary);
+}
+
+.scan-origin {
+	display: flex;
+	gap: 8px;
+}
+
+/* Whole, however long: it is what has to be typed into the node's config. */
+.scan-origin code {
+	flex: 1;
+	min-width: 0;
+	padding: 10px 12px;
+	background: var(--bg-primary);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	word-break: break-all;
+	user-select: all;
 }
 
 /* PWA Toast */
