@@ -132,6 +132,10 @@ a:hover {
 }
 
 .btn-add {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
 	width: 100%;
 	padding: 14px;
 	background: transparent;
@@ -283,6 +287,11 @@ a:hover {
 
 .add-section {
 	margin-top: 8px;
+}
+
+.add-actions {
+	display: flex;
+	gap: 8px;
 }
 
 /* Instance Card */

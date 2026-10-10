@@ -143,3 +143,16 @@ describe('InstanceList — add instance form', () => {
 		expect(screen.getByRole('button', { name: '+ Add Instance' })).toBeInTheDocument();
 	});
 });
+
+// ── scan network ──────────────────────────────────────────────────────────────
+
+describe('InstanceList — scan network', () => {
+	test('"Scan network" opens the scan modal, closing it removes it', async () => {
+		render(InstanceList);
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: 'Scan network' }));
+		expect(screen.getByRole('dialog', { name: 'Scan network' })).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+});
