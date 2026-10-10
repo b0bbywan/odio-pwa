@@ -6,8 +6,10 @@
 	import { detectUnsupportedDesktop } from '../lib/browser';
 	import InstanceCard from './InstanceCard.svelte';
 	import AddInstanceForm from './AddInstanceForm.svelte';
+	import ScanModal from './ScanModal.svelte';
 
 	let showAddForm = $state(false);
+	let showScan = $state(false);
 	let update = $state<ReleaseInfo | null>(null);
 	let unsupported = $state<'firefox' | 'safari' | null>(null);
 
@@ -105,16 +107,34 @@
 		{#if showAddForm}
 			<AddInstanceForm onclose={() => (showAddForm = false)} />
 		{:else}
-			<button
-				class="btn-add"
-				onclick={() => (showAddForm = true)}
-				disabled={!!unsupported}
-				title={ctaDisabledTitle}
-			>
-				+ Add Instance
-			</button>
+			<div class="add-actions">
+				<button
+					class="btn-add"
+					onclick={() => (showAddForm = true)}
+					disabled={!!unsupported}
+					title={ctaDisabledTitle}
+				>
+					+ Add Instance
+				</button>
+				<button
+					class="btn-add"
+					onclick={() => (showScan = true)}
+					disabled={!!unsupported}
+					title={ctaDisabledTitle}
+				>
+					<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+						<circle cx="11" cy="11" r="7" />
+						<line x1="21" y1="21" x2="16.5" y2="16.5" />
+					</svg>
+					Scan network
+				</button>
+			</div>
 		{/if}
 	</section>
+
+	{#if showScan}
+		<ScanModal onclose={() => (showScan = false)} />
+	{/if}
 
 	<footer class="app-footer">
 		<a class="docs-link" href="https://docs.odio.love" target="_blank" rel="noopener noreferrer">
