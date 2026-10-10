@@ -26,8 +26,8 @@
 			: '',
 	);
 
-	// Offline instances last, frozen until the list is shown again or
-	// "Refresh all" (see ListPlacements).
+	// Playing instances first, then paused, idle and offline ones, frozen
+	// until the list is shown again or "Refresh all" (see ListPlacements).
 	const placements = new ListPlacements();
 	$effect(() => placements.update(appState.instances));
 

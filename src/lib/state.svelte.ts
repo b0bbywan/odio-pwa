@@ -226,6 +226,9 @@ export class AppState {
 	probeOne(id: string): void {
 		this.stopPolling(id);
 		this.disconnectOne(id);
+		// Unknown again until the new connection's snapshot (see ListPlacements).
+		const inst = this.findById(id);
+		if (inst) inst.players = undefined;
 		this.connectOne(id);
 	}
 

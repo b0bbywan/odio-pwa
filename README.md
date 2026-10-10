@@ -38,7 +38,7 @@ Manage multiple odio-api endpoints from a single interface: add instances manual
 
 ## Features
 
-- **Instance management**: add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage; unreachable instances are listed last
+- **Instance management**: add, edit, delete odio-api instances (IP/hostname + port), persisted in localStorage; instances playing something are listed first, then paused ones, unreachable ones last
 - **Now playing**: each instance card shows the active MPRIS media player (audio or video): cover art (click to zoom), title, artist, album and progress, with previous / play-pause / next driven by the player's capabilities; one tab per player when several are active
 - **Power off**: a power button in the card header, behind a confirmation, when odio-api's power backend allows it
 - **Deep linking** — open an instance directly via `#/i/<host>/<port>?label=<name>` (port and label optional). First-time visits stay in-memory only and prompt to save on exit, so QR codes and shared links don't silently pollute the user's list
