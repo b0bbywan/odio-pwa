@@ -6,12 +6,16 @@
 
 	const playing = $derived(player.playback_status === 'Playing');
 	const length = $derived(trackLength(player));
+	// Same rule as odio-api's UI. Streams have no length, and a player that
+	// can't seek reports no usable position (e.g. a Snapcast client relaying
+	// someone else's track: a length, but a position stuck at zero).
+	const tracked = $derived(length !== undefined && !!player.capabilities?.can_seek);
 
-	// Re-render every second while a track with a known length is playing;
-	// the position itself is extrapolated, not polled.
+	// Re-render every second while a tracked position is playing; the
+	// position itself is extrapolated, not polled.
 	let now = $state(Date.now());
 	$effect(() => {
-		if (!playing || length === undefined) return;
+		if (!playing || !tracked) return;
 		now = Date.now();
 		const timer = setInterval(() => (now = Date.now()), 1000);
 		return () => clearInterval(timer);
@@ -19,8 +23,7 @@
 	const position = $derived(currentPosition(player, now));
 </script>
 
-<!-- Streams have no length: nothing to show. -->
-{#if length !== undefined}
+{#if tracked && length !== undefined}
 	<div class="np-progress">
 		<span>{formatTime(position)}</span>
 		<div class="np-bar" aria-hidden="true">

@@ -9,6 +9,7 @@ const track = mpdPlayer({
 	position: 65_000_000, // 1:05
 	position_updated_at: new Date(T0).toISOString(),
 	metadata: { 'mpris:length': '200000000' }, // 3:20
+	capabilities: { ...mpdPlayer().capabilities, can_seek: true },
 });
 
 afterEach(() => {
@@ -21,6 +22,17 @@ describe('NowPlayingProgress', () => {
 			player: { ...track, metadata: {} },
 		});
 		expect(container.querySelector('.np-progress')).toBeNull();
+	});
+
+	// A Snapcast client relays the source's track length, but its own position
+	// never moves: extrapolating from it would show a full bar.
+	test('renders nothing when the player cannot seek', () => {
+		vi.useFakeTimers({ now: T0 });
+		const { container } = render(NowPlayingProgress, {
+			player: { ...track, capabilities: { ...track.capabilities, can_seek: false } },
+		});
+		expect(container.querySelector('.np-progress')).toBeNull();
+		expect(vi.getTimerCount()).toBe(0);
 	});
 
 	test('advances every second while playing', async () => {
