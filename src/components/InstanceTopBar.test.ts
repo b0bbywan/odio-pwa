@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, within } from '@testing-library/svelte';
 import { fireEvent } from '@testing-library/svelte';
 import type { OdioInstance } from '../lib/types';
 
@@ -111,20 +111,23 @@ describe('InstanceTopBar — switcher with multiple instances', () => {
 		];
 	});
 
+	const dropdown = () => document.querySelector<HTMLDialogElement>('dialog.switcher-dropdown')!;
+
 	test('switcher button is shown', () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
 		expect(screen.getByTitle('Switch instance')).toBeInTheDocument();
 	});
 
-	test('dropdown is hidden initially', () => {
+	test('dropdown is closed initially', () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
-		expect(screen.queryByText('Pi 2')).not.toBeInTheDocument();
+		expect(dropdown()).not.toHaveAttribute('open');
 	});
 
 	test('clicking the switcher opens the dropdown', async () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
 		await fireEvent.click(screen.getByTitle('Switch instance'));
-		expect(screen.getByText('Pi 2')).toBeInTheDocument();
+		expect(dropdown()).toHaveAttribute('open');
+		expect(within(dropdown()).getByRole('button', { name: 'Pi 2' })).toBeInTheDocument();
 	});
 
 	test('current instance is excluded from the dropdown', async () => {
@@ -148,16 +151,14 @@ describe('InstanceTopBar — switcher with multiple instances', () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
 		await fireEvent.click(screen.getByTitle('Switch instance'));
 		await fireEvent.click(screen.getByText('Pi 2'));
-		expect(screen.queryByText('Pi 2')).not.toBeInTheDocument();
+		expect(dropdown()).not.toHaveAttribute('open');
 	});
 
 	test('clicking the backdrop closes the dropdown', async () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
 		await fireEvent.click(screen.getByTitle('Switch instance'));
-		expect(screen.getByText('Pi 2')).toBeInTheDocument();
-		// The backdrop is the element behind the dropdown; click it to dismiss
-		const backdrop = document.querySelector('.switcher-backdrop') as HTMLElement;
-		await fireEvent.click(backdrop);
-		expect(screen.queryByText('Pi 2')).not.toBeInTheDocument();
+		// A click on the backdrop targets the dialog itself
+		await fireEvent.click(dropdown());
+		expect(dropdown()).not.toHaveAttribute('open');
 	});
 });
