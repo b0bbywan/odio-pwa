@@ -774,10 +774,6 @@ a:hover {
 	text-overflow: ellipsis;
 }
 
-.switcher-wrapper {
-	position: relative;
-}
-
 .btn-switch {
 	background: transparent;
 	color: var(--text-secondary);
@@ -792,23 +788,18 @@ a:hover {
 	color: var(--text-primary);
 }
 
-.switcher-backdrop {
-	position: fixed;
-	inset: 0;
-	z-index: 10;
-}
-
 .switcher-dropdown {
-	position: absolute;
-	right: 0;
-	top: 100%;
+	inset: var(--topbar-height) 8px auto auto;
 	margin-top: 4px;
+	padding: 0;
 	background: var(--bg-secondary);
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	min-width: 180px;
-	z-index: 11;
-	overflow: hidden;
+}
+
+.switcher-dropdown::backdrop {
+	background: transparent;
 }
 
 .switcher-dropdown button {

@@ -19,12 +19,9 @@
 		onsave?: () => void;
 	} = $props();
 
-	let showSwitcher = $state(false);
-
-	function handleSwitch(id: string) {
-		showSwitcher = false;
-		onswitchto(id);
-	}
+	// Native modal dialog: Escape and focus handling for free, and the iframe
+	// below can't swallow the click that closes it.
+	let switcher = $state<HTMLDialogElement>();
 
 	function handleBack() {
 		if (onback) onback();
@@ -53,28 +50,28 @@
 	{/if}
 
 	{#if appState.connectableInstances.length > 1}
-		<div class="switcher-wrapper">
-			<button
-				class="btn-switch"
-				onclick={() => (showSwitcher = !showSwitcher)}
-				title="Switch instance"
-			>
-				<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-					<polyline points="6 9 12 15 18 9" />
-				</svg>
-			</button>
-			{#if showSwitcher}
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="switcher-backdrop" onclick={() => (showSwitcher = false)}></div>
-				<div class="switcher-dropdown">
-					{#each appState.connectableInstances as other (other.id)}
-						{#if other.id !== currentId}
-							<button onclick={() => handleSwitch(other.id)}>{nameOf(other)}</button>
-						{/if}
-					{/each}
-				</div>
-			{/if}
-		</div>
+		<button
+			class="btn-switch"
+			onclick={() => switcher?.showModal()}
+			title="Switch instance"
+			aria-haspopup="dialog"
+		>
+			<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+				<polyline points="6 9 12 15 18 9" />
+			</svg>
+		</button>
+		<!-- Click anywhere closes: on an instance, after switching to it, or on the backdrop. -->
+		<dialog
+			class="switcher-dropdown"
+			aria-label="Switch instance"
+			bind:this={switcher}
+			onclick={() => switcher?.close()}
+		>
+			{#each appState.connectableInstances as other (other.id)}
+				{#if other.id !== currentId}
+					<button onclick={() => onswitchto(other.id)}>{nameOf(other)}</button>
+				{/if}
+			{/each}
+		</dialog>
 	{/if}
 </nav>
