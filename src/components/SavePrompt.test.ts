@@ -60,30 +60,10 @@ describe('SavePrompt — actions', () => {
 		expect(oncancel).toHaveBeenCalledOnce();
 	});
 
-	test('clicking the backdrop calls oncancel', async () => {
+	test('closing the dialog, as Escape or the backdrop do, calls oncancel', () => {
 		const oncancel = vi.fn();
 		renderPrompt({ oncancel });
-		const backdrop = document.querySelector('.save-prompt-backdrop')!;
-		await fireEvent.click(backdrop);
+		screen.getByRole<HTMLDialogElement>('dialog').close();
 		expect(oncancel).toHaveBeenCalledOnce();
-	});
-});
-
-// ── keyboard ──────────────────────────────────────────────────────────────────
-
-describe('SavePrompt — keyboard', () => {
-	test('Escape calls oncancel', () => {
-		const oncancel = vi.fn();
-		renderPrompt({ oncancel });
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-		expect(oncancel).toHaveBeenCalledOnce();
-	});
-
-	test('other keys do nothing', () => {
-		const oncancel = vi.fn();
-		renderPrompt({ oncancel });
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
-		expect(oncancel).not.toHaveBeenCalled();
 	});
 });

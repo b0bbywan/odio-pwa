@@ -71,14 +71,18 @@ describe('ScanModal — dialog', () => {
 		expect(screen.getByRole('button', { name: 'Scan' })).toBeInTheDocument();
 	});
 
-	test('Cancel, Close, Escape and the backdrop all close', async () => {
+	test.each(['Cancel', 'Close'])('"%s" closes', async (name) => {
 		const onclose = vi.fn();
 		render(ScanModal, { onclose });
-		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-		await fireEvent.click(document.querySelector('.scan-backdrop')!);
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-		expect(onclose).toHaveBeenCalledTimes(4);
+		await fireEvent.click(screen.getByRole('button', { name }));
+		expect(onclose).toHaveBeenCalledOnce();
+	});
+
+	test('closing the dialog, as Escape or the backdrop do, closes', () => {
+		const onclose = vi.fn();
+		render(ScanModal, { onclose });
+		screen.getByRole<HTMLDialogElement>('dialog').close();
+		expect(onclose).toHaveBeenCalledOnce();
 	});
 
 	test('closing aborts the scan', async () => {

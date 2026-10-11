@@ -2,6 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { appState } from '../lib/state.svelte';
 	import { Scanner } from '../lib/scanner.svelte';
+	import Modal from './Modal.svelte';
 	import ScanBlocked from './ScanBlocked.svelte';
 	import ScanForm from './ScanForm.svelte';
 	import ScanProgress from './ScanProgress.svelte';
@@ -10,6 +11,7 @@
 	let { onclose }: { onclose: () => void } = $props();
 
 	const scanner = new Scanner();
+	let modal = $state<Modal>();
 	// Back on the form after a scan: the target is what's left to change.
 	let editing = $state(false);
 
@@ -40,23 +42,18 @@
 	}
 
 	function close() {
-		scanner.abort();
-		onclose();
+		modal?.close();
 	}
 
-	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') close();
+	function handleClose() {
+		scanner.abort();
+		onclose();
 	}
 
 	onDestroy(() => scanner.abort());
 </script>
 
-<svelte:window onkeydown={onKeydown} />
-
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="scan-backdrop" onclick={close}></div>
-<div class="scan-modal" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+<Modal bind:this={modal} class="scan-modal" labelledby="scan-title" onclose={handleClose}>
 	<header class="scan-header">
 		<h3 id="scan-title">Scan network</h3>
 		<button class="btn-icon" onclick={close} title="Close" aria-label="Close">
@@ -113,4 +110,4 @@
 			{/if}
 		</div>
 	{/if}
-</div>
+</Modal>

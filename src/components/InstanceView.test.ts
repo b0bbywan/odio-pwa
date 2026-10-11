@@ -462,22 +462,14 @@ describe('InstanceView — save prompt', () => {
 		expect(appState.removeInstance).not.toHaveBeenCalled();
 	});
 
-	test('Escape key closes the prompt without persisting or navigating', () => {
+	test('closing the dialog, as Escape does, hides the prompt without persisting or navigating', () => {
 		mockInstance.transient = true;
 		mockState.savePromptVisible = true;
 		render(InstanceView, defaultParams);
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+		screen.getByRole<HTMLDialogElement>('dialog').close();
 		expect(mockState.savePromptVisible).toBe(false);
 		expect(push).not.toHaveBeenCalled();
 		expect(appState.persistInstance).not.toHaveBeenCalled();
 		expect(appState.removeInstance).not.toHaveBeenCalled();
-	});
-
-	test('Escape key is a no-op when the prompt is closed', () => {
-		mockInstance.transient = true;
-		mockState.savePromptVisible = false;
-		render(InstanceView, defaultParams);
-		window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-		expect(mockState.savePromptVisible).toBe(false);
 	});
 });
