@@ -106,6 +106,7 @@ src/
 │   ├── NowPlayingControls.svelte # Previous / play-pause / next
 │   ├── PowerOffButton.svelte     # Power-off icon with its inline confirmation
 │   ├── AddInstanceForm.svelte    # Add/edit form (host, port, label)
+│   ├── Modal.svelte              # Native modal <dialog>: focus kept inside, Escape, backdrop click
 │   ├── ScanModal.svelte          # Network scan dialog: summary and actions around a Scanner
 │   ├── ScanForm.svelte           # Scan target and port
 │   ├── ScanProgress.svelte       # Scan steps and progress bar
