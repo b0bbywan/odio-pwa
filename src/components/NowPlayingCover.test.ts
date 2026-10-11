@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import type { MprisPlayer } from '../lib/types';
 import NowPlayingCover from './NowPlayingCover.svelte';
@@ -12,16 +12,6 @@ const coverSrc =
 function renderWith(player: MprisPlayer) {
 	return render(NowPlayingCover, { host: 'raspodio.local', port: 8018, player });
 }
-
-beforeEach(() => {
-	// jsdom has no modal dialog support
-	HTMLDialogElement.prototype.showModal = function () {
-		this.setAttribute('open', '');
-	};
-	HTMLDialogElement.prototype.close = function () {
-		this.removeAttribute('open');
-	};
-});
 
 describe('NowPlayingCover', () => {
 	test('loads the cover through odio-api', () => {

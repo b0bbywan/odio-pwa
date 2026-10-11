@@ -849,27 +849,25 @@ a:hover {
 	background: var(--accent-hover);
 }
 
-.save-prompt-backdrop,
-.scan-backdrop {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.5);
-	z-index: 20;
-}
-
-.save-prompt,
-.scan-modal {
-	position: fixed;
-	left: 50%;
-	top: 50%;
-	transform: translate(-50%, -50%);
+.modal {
+	margin: auto;
+	padding: 0;
 	background: var(--bg-secondary);
+	color: var(--text-primary);
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
-	padding: 20px;
 	width: min(360px, calc(100vw - 32px));
-	z-index: 21;
+	max-width: none;
+	max-height: calc(100dvh - 32px);
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modal::backdrop {
+	background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-body {
+	padding: 20px;
 }
 
 .save-prompt h3 {
@@ -900,12 +898,13 @@ a:hover {
 /* Scan network modal */
 
 .scan-modal {
+	width: min(420px, calc(100vw - 32px));
+}
+
+.scan-modal .modal-body {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	width: min(420px, calc(100vw - 32px));
-	max-height: calc(100dvh - 32px);
-	overflow-y: auto;
 }
 
 .scan-header {
