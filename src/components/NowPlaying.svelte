@@ -5,7 +5,12 @@
 	import NowPlayingCover from './NowPlayingCover.svelte';
 	import NowPlayingProgress from './NowPlayingProgress.svelte';
 
-	let { host, port, players }: { host: string; port: number; players: MprisPlayer[] } = $props();
+	let {
+		host,
+		port,
+		players,
+		href,
+	}: { host: string; port: number; players: MprisPlayer[]; href?: string } = $props();
 
 	let selected = $state<string | null>(null);
 	const active = $derived(activePlayers(players));
@@ -57,7 +62,7 @@
 
 		<div class="np-body">
 			<NowPlayingCover {host} {port} {player} />
-			<div class="np-text">
+			<svelte:element this={href ? 'a' : 'div'} class="np-text" {href}>
 				<div class="np-title" title={title}>{title}</div>
 				{#if meta['xesam:artist']}
 					<div class="np-artist" title={meta['xesam:artist']}>{meta['xesam:artist']}</div>
@@ -65,7 +70,7 @@
 				{#if meta['xesam:album']}
 					<div class="np-album" title={meta['xesam:album']}>{meta['xesam:album']}</div>
 				{/if}
-			</div>
+			</svelte:element>
 		</div>
 
 		<NowPlayingProgress {player} />

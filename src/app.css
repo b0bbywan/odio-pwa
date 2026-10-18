@@ -341,6 +341,20 @@ a:hover {
 	white-space: nowrap;
 }
 
+/* The name and the track text open the instance: plain text until hovered. */
+.card-link,
+a.np-text {
+	color: inherit;
+	text-decoration: none;
+}
+
+.card-link:hover,
+a.np-text:hover .np-title {
+	text-decoration: underline;
+	text-decoration-color: var(--accent);
+	text-underline-offset: 2px;
+}
+
 /* Power off: icon at the far right of the header, swapped for
    cancel / confirm buttons while confirming. */
 .power-off {

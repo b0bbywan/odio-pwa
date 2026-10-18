@@ -1,11 +1,10 @@
 import type { OdioInstance } from './types';
 import { createConnection, type ConnectionCallbacks } from './connection';
-import { isConnectable } from './instance';
+import { instancePath, isConnectable } from './instance';
 import { push } from 'svelte-spa-router';
 
 const STORAGE_KEY = 'odio-instances';
 const SSE_LIMIT = 6;
-const DEFAULT_PORT = 8018;
 
 function loadInstances(): OdioInstance[] {
 	try {
@@ -42,14 +41,6 @@ export function byPriority(a: OdioInstance, b: OdioInstance): number {
 	const bPower = b.serverInfo?.backends.power ? 1 : 0;
 	if (bPower !== aPower) return bPower - aPower;
 	return (b.connectedAt ?? 0) - (a.connectedAt ?? 0);
-}
-
-export function instancePath(host: string, port: number, label?: string): string {
-	const base = port === DEFAULT_PORT
-		? `/i/${encodeURIComponent(host)}`
-		: `/i/${encodeURIComponent(host)}/${port}`;
-	if (!label) return base;
-	return `${base}?label=${encodeURIComponent(label)}`;
 }
 
 export interface InstanceCallbacks {

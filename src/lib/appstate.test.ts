@@ -6,7 +6,8 @@ vi.mock('./sse', () => ({ connectSSE: vi.fn() }));
 vi.mock('./api', () => ({ probeInstance: vi.fn(), fetchPlayers: vi.fn() }));
 vi.mock('svelte-spa-router', () => ({ push: vi.fn() }));
 
-import { AppState, instancePath } from './state.svelte';
+import { AppState } from './state.svelte';
+import { instancePath } from './instance';
 import { connectSSE } from './sse';
 import { fetchPlayers, probeInstance } from './api';
 import { push } from 'svelte-spa-router';

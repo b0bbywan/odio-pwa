@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { OdioInstance } from '../lib/types';
 	import { appState } from '../lib/state.svelte';
-	import { displayName as nameOf, isConnectable } from '../lib/instance';
+	import { displayName as nameOf, instancePath, isConnectable } from '../lib/instance';
 	import AddInstanceForm from './AddInstanceForm.svelte';
 	import NowPlaying from './NowPlaying.svelte';
 	import PowerOffButton from './PowerOffButton.svelte';
@@ -10,6 +10,12 @@
 	let editing = $state(false);
 
 	const displayName = $derived(nameOf(instance));
+	// The name and the track open the instance too, not only Connect.
+	const href = $derived(
+		isConnectable(instance.status)
+			? `#${instancePath(instance.host, instance.port, instance.label)}`
+			: undefined,
+	);
 
 	const corsDocsHref = 'https://docs.odio.love/guides/pwa/#cors-on-each-node';
 	const lanDocsHref = 'https://docs.odio.love/guides/pwa/#lan-access';
@@ -33,7 +39,9 @@
 	<article class="instance-card status-{instance.status}">
 		<div class="card-header">
 			<span class="status-dot"></span>
-			<h3 title={displayName}>{displayName}</h3>
+			<h3 title={displayName}>
+				{#if href}<a class="card-link" {href}>{displayName}</a>{:else}{displayName}{/if}
+			</h3>
 			{#if canPowerOff}
 				<PowerOffButton host={instance.host} port={instance.port} name={displayName} />
 			{/if}
@@ -72,7 +80,7 @@
 		{/if}
 
 		{#if instance.status === 'online' && instance.players?.length}
-			<NowPlaying host={instance.host} port={instance.port} players={instance.players} />
+			<NowPlaying host={instance.host} port={instance.port} players={instance.players} {href} />
 		{/if}
 
 		<div class="card-actions">
