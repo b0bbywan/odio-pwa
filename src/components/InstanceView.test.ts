@@ -56,7 +56,9 @@ vi.mock('../lib/state.svelte', () => ({
 
 const mockRouter = vi.hoisted(() => ({ querystring: '' }));
 
-vi.mock('svelte-spa-router', () => ({ push: vi.fn(), router: mockRouter }));
+vi.mock('svelte-spa-router', () => ({ push: vi.fn(), replace: vi.fn(), router: mockRouter }));
+
+vi.mock('../lib/nav', () => ({ goHome: vi.fn(), showInFrame: vi.fn() }));
 
 vi.mock('../lib/api', () => ({
 	getInstanceUiUrl: (host: string, port: number) => `http://${host}:${port}/ui`,
@@ -64,7 +66,8 @@ vi.mock('../lib/api', () => ({
 
 import InstanceView from './InstanceView.svelte';
 import { appState } from '../lib/state.svelte';
-import { push } from 'svelte-spa-router';
+import { push, replace } from 'svelte-spa-router';
+import { goHome, showInFrame } from '../lib/nav';
 
 const params = (host: string, port?: string) => ({ params: { host, port: port ?? null } });
 const defaultParams = params('192.168.1.1', '8080');
@@ -120,13 +123,13 @@ describe('InstanceView — normal state', () => {
 
 	test('redirects to / when the port is not a valid number', () => {
 		render(InstanceView, params('10.0.0.99', 'abc'));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(replace).toHaveBeenCalledWith('/');
 		expect(appState.addInstance).not.toHaveBeenCalled();
 	});
 
 	test('redirects to / when the port is out of range', () => {
 		render(InstanceView, params('10.0.0.99', '99999'));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(replace).toHaveBeenCalledWith('/');
 		expect(appState.addInstance).not.toHaveBeenCalled();
 	});
 
@@ -211,12 +214,12 @@ describe('InstanceView — poweroff', () => {
 		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
 	});
 
-	test('dismiss button routes to /', async () => {
+	test('dismiss button goes home', async () => {
 		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
 		const powerScreen = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(powerScreen).getByRole('button', { name: /back to list/i }));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 	});
 
 	test('clicking Wait restarts the connection', async () => {
@@ -290,32 +293,54 @@ describe('InstanceView — connection status screen', () => {
 		expect(document.querySelector('iframe')).not.toBeInTheDocument();
 	});
 
-	test('back button on the Connecting screen routes to /', async () => {
+	test('back button on the Connecting screen goes home', async () => {
 		mockInstance.status = 'probing';
 		mockInstance.transient = false;
 		render(InstanceView, defaultParams);
 		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 	});
 
-	test('back button on the offline screen routes to / for a saved instance', async () => {
+	test('back button on the offline screen goes home for a saved instance', async () => {
 		mockInstance.status = 'offline';
 		mockInstance.transient = false;
 		render(InstanceView, defaultParams);
 		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 	});
 
-	test('back button on the offline screen routes to / even for a transient instance', async () => {
+	test('back button on the offline screen goes home even for a transient instance', async () => {
 		mockInstance.status = 'offline';
 		mockInstance.transient = true;
 		render(InstanceView, defaultParams);
 		const screenEl = document.querySelector<HTMLElement>('.status-screen')!;
 		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 		expect(mockState.savePromptVisible).toBe(false);
+	});
+});
+
+// ── node dashboard ────────────────────────────────────────────────────────────
+
+describe('InstanceView — node dashboard', () => {
+	test('brings the iframe back to the instance UI', async () => {
+		render(InstanceView, defaultParams);
+		await fireEvent.click(screen.getByTitle('Node dashboard'));
+		expect(showInFrame).toHaveBeenCalledWith(document.querySelector('iframe'), 'http://192.168.1.1:8080/ui');
+	});
+
+	test('hidden while the iframe is not shown', () => {
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		expect(screen.queryByTitle('Node dashboard')).not.toBeInTheDocument();
+	});
+
+	test('hidden on the power screen', () => {
+		render(InstanceView, defaultParams);
+		flushSync(() => capturedCallbacks.onPowerAction?.('poweroff'));
+		expect(screen.queryByTitle('Node dashboard')).not.toBeInTheDocument();
 	});
 });
 
@@ -327,6 +352,15 @@ describe('InstanceView — switchTo', () => {
 		await fireEvent.click(screen.getByTitle('Switch instance'));
 		await fireEvent.click(screen.getByText('Pi2'));
 		expect(appState.openInstance).toHaveBeenCalledWith('2');
+	});
+
+	test('a new instance gets a new iframe, not a new src on the old one', async () => {
+		const { rerender } = render(InstanceView, defaultParams);
+		const first = document.querySelector('iframe');
+		await rerender(params('192.168.1.2', '8080'));
+		const second = document.querySelector('iframe');
+		expect(second).toHaveAttribute('src', 'http://192.168.1.2:8080/ui');
+		expect(second).not.toBe(first);
 	});
 });
 
@@ -352,29 +386,29 @@ describe('InstanceView — transient', () => {
 		expect(appState.persistInstance).toHaveBeenCalledWith('1');
 	});
 
-	test('back button on a non-transient instance routes to /', async () => {
+	test('home button on a non-transient instance goes home', async () => {
 		mockInstance.transient = false;
 		render(InstanceView, defaultParams);
 		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 		expect(mockState.savePromptVisible).toBe(false);
 	});
 
-	test('back button on a transient online instance shows the save prompt', async () => {
+	test('home button on a transient online instance shows the save prompt', async () => {
 		mockInstance.transient = true;
 		mockInstance.status = 'online';
 		render(InstanceView, defaultParams);
 		await fireEvent.click(screen.getByTitle('Back to list'));
 		expect(mockState.savePromptVisible).toBe(true);
-		expect(push).not.toHaveBeenCalled();
+		expect(goHome).not.toHaveBeenCalled();
 	});
 
-	test('back button on a transient offline instance just routes to / (no point saving an unreachable host)', async () => {
+	test('home button on a transient offline instance just goes home (no point saving an unreachable host)', async () => {
 		mockInstance.transient = true;
 		mockInstance.status = 'offline';
 		render(InstanceView, defaultParams);
 		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 		expect(mockState.savePromptVisible).toBe(false);
 	});
 

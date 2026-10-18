@@ -775,12 +775,36 @@ a.np-text:hover .np-title {
 	display: flex;
 	align-items: center;
 	padding: 0 8px;
-	gap: 8px;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+/* Home and the node dashboard: the odio-coloured way out, either level. */
+.btn-home,
+.btn-home:hover:not(:disabled) {
+	color: var(--accent);
+}
+
+.btn-dashboard {
+	padding: 4px;
+}
+
+.btn-dashboard img {
+	display: block;
+	object-fit: contain;
+}
+
+.top-bar-sep {
+	width: 1px;
+	height: 20px;
+	margin: 0 4px;
+	background: var(--border);
 	flex-shrink: 0;
 }
 
 .current-name {
 	flex: 1;
+	min-width: 0;
 	font-weight: 600;
 	font-size: 0.95rem;
 	white-space: nowrap;
@@ -788,28 +812,40 @@ a.np-text:hover .np-title {
 	text-overflow: ellipsis;
 }
 
+/* The whole name opens the switcher, not only the arrow. */
 .btn-switch {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-right: auto;
 	background: transparent;
-	color: var(--text-secondary);
-	padding: 6px;
+	color: var(--text-primary);
+	padding: 6px 8px;
 	border-radius: var(--radius);
 	display: inline-flex;
 	align-items: center;
-	transition: color 0.2s;
+	gap: 4px;
+	transition: background 0.2s;
+}
+
+.btn-switch svg {
+	flex-shrink: 0;
+	color: var(--text-secondary);
 }
 
 .btn-switch:hover {
-	color: var(--text-primary);
+	background: rgba(255, 255, 255, 0.08);
 }
 
 .switcher-dropdown {
-	inset: var(--topbar-height) 8px auto auto;
+	/* left is set from the name button when it opens */
+	inset: var(--topbar-height) auto auto 8px;
 	margin-top: 4px;
 	padding: 0;
 	background: var(--bg-secondary);
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
 	min-width: 180px;
+	max-width: calc(100vw - 16px);
 }
 
 .switcher-dropdown::backdrop {
