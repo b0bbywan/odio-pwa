@@ -10,11 +10,11 @@ vi.mock('../lib/state.svelte', () => ({
 	},
 }));
 
-vi.mock('svelte-spa-router', () => ({ push: vi.fn() }));
+vi.mock('../lib/nav', () => ({ goHome: vi.fn() }));
 
 import InstanceTopBar from './InstanceTopBar.svelte';
 import { appState } from '../lib/state.svelte';
-import { push } from 'svelte-spa-router';
+import { goHome } from '../lib/nav';
 
 const inst = (id: string, label: string): OdioInstance => ({
 	id,
@@ -37,22 +37,43 @@ describe('InstanceTopBar — display', () => {
 		expect(screen.getByText('My Pi')).toBeInTheDocument();
 	});
 
-	test('back button routes to / when no onback is provided', async () => {
+	test('no back button: previous page is the system back button', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
+		expect(screen.queryByTitle('Back')).not.toBeInTheDocument();
+	});
+
+	test('home button goes home when no onhome is provided', async () => {
 		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
 		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(push).toHaveBeenCalledWith('/');
+		expect(goHome).toHaveBeenCalledOnce();
 	});
 });
 
 // ── onback override ───────────────────────────────────────────────────────────
 
-describe('InstanceTopBar — onback override', () => {
-	test('back button calls onback when provided, not push', async () => {
-		const onback = vi.fn();
-		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), onback });
+describe('InstanceTopBar — onhome override', () => {
+	test('home button calls onhome when provided, not goHome', async () => {
+		const onhome = vi.fn();
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), onhome });
 		await fireEvent.click(screen.getByTitle('Back to list'));
-		expect(onback).toHaveBeenCalledOnce();
-		expect(push).not.toHaveBeenCalled();
+		expect(onhome).toHaveBeenCalledOnce();
+		expect(goHome).not.toHaveBeenCalled();
+	});
+});
+
+// ── node dashboard button ─────────────────────────────────────────────────────
+
+describe('InstanceTopBar — node dashboard button', () => {
+	test('hidden without ondashboard', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
+		expect(screen.queryByTitle('Node dashboard')).not.toBeInTheDocument();
+	});
+
+	test('clicking it calls ondashboard', async () => {
+		const ondashboard = vi.fn();
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), ondashboard });
+		await fireEvent.click(screen.getByTitle('Node dashboard'));
+		expect(ondashboard).toHaveBeenCalledOnce();
 	});
 });
 
@@ -113,9 +134,9 @@ describe('InstanceTopBar — switcher with multiple instances', () => {
 
 	const dropdown = () => document.querySelector<HTMLDialogElement>('dialog.switcher-dropdown')!;
 
-	test('switcher button is shown', () => {
+	test('the name is the switcher button', () => {
 		render(InstanceTopBar, { displayName: 'Pi 1', currentId: '1', onswitchto: vi.fn() });
-		expect(screen.getByTitle('Switch instance')).toBeInTheDocument();
+		expect(screen.getByTitle('Switch instance')).toHaveTextContent('Pi 1');
 	});
 
 	test('dropdown is closed initially', () => {

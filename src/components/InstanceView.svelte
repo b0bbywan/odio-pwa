@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { push, router } from 'svelte-spa-router';
+	import { push, replace, router } from 'svelte-spa-router';
 	import { appState } from '../lib/state.svelte';
 	import { getInstanceUiUrl } from '../lib/api';
 	import { displayName as nameOf, isConnectable } from '../lib/instance';
+	import { goHome, showInFrame } from '../lib/nav';
 	import type { PowerEvent } from '../lib/types';
 	import InstanceTopBar from './InstanceTopBar.svelte';
 	import PowerScreen from './PowerScreen.svelte';
@@ -25,9 +26,10 @@
 	);
 
 	// Invalid port (non-numeric or out of range) - bounce to the list so the
-	// user gets a real view instead of a blank page.
+	// user gets a real view instead of a blank page. Replaced, not pushed, so
+	// back does not land on the bad URL and bounce again.
 	$effect(() => {
-		if (host && !Number.isFinite(port)) push('/');
+		if (host && !Number.isFinite(port)) replace('/');
 	});
 
 	// Find or transiently add the instance matching the route params. If we
@@ -59,6 +61,7 @@
 	let serverWentOffline = $state(false);
 	let waiting = $state(false); // user chose to wait during poweroff
 	let iframeKey = $state(0);
+	let iframe = $state<HTMLIFrameElement>();
 
 	function handlePowerAction(action: PowerEvent) {
 		powerEvent = action;
@@ -117,14 +120,19 @@
 	$effect(() => {
 		if (!instance?.transient) return;
 		if (!isConnectable(instance.status)) return;
-		history.pushState({ odioGuard: true }, '');
+		history.pushState({ ...history.state, odioGuard: true }, '');
 		function onPopState() {
-			history.pushState({ odioGuard: true }, '');
+			history.pushState({ ...history.state, odioGuard: true }, '');
 			appState.savePromptVisible = true;
 		}
 		window.addEventListener('popstate', onPopState);
 		return () => window.removeEventListener('popstate', onPopState);
 	});
+
+	// The iframe is on screen: no power screen, no connection status screen.
+	const showingUi = $derived(
+		powerEvent === null && !!instance && isConnectable(instance.status),
+	);
 
 	function startWaiting() {
 		waiting = true;
@@ -135,7 +143,7 @@
 	function dismiss() {
 		powerEvent = null;
 		waiting = false;
-		push('/');
+		goHome();
 	}
 
 	function switchTo(id: string) {
@@ -143,13 +151,18 @@
 		appState.openInstance(id);
 	}
 
-	function handleBack() {
-		// Only prompt to save when the instance is actually connectable - asking
-		// the user to save an unreachable host would be pointless.
+	function showDashboard() {
+		if (iframe) showInFrame(iframe, uiUrl);
+	}
+
+	// Leaving a transient instance asks to save it first. Only when it is
+	// actually connectable - asking to save an unreachable host would be
+	// pointless.
+	function leave(go: () => void) {
 		if (instance?.transient && isConnectable(instance.status)) {
 			appState.savePromptVisible = true;
 		} else {
-			push('/');
+			go();
 		}
 	}
 
@@ -185,7 +198,8 @@
 			{displayName}
 			currentId={instance.id}
 			onswitchto={switchTo}
-			onback={handleBack}
+			onhome={() => leave(goHome)}
+			ondashboard={showingUi ? showDashboard : undefined}
 			transient={!!instance.transient}
 			onsave={saveTransient}
 		/>
@@ -193,8 +207,10 @@
 		{#if powerEvent !== null}
 			<PowerScreen event={powerEvent} {waiting} onstartwaiting={startWaiting} ondismiss={dismiss} />
 		{:else if isConnectable(instance.status)}
-			{#key iframeKey}
-				<iframe src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
+			<!-- Keyed on the URL too: switching instance swaps the whole iframe, as
+			     changing its src would add a history entry of its own. -->
+			{#key `${uiUrl}#${iframeKey}`}
+				<iframe bind:this={iframe} src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
 			{/key}
 		{:else}
 			<ConnectionStatusScreen
@@ -202,7 +218,7 @@
 				{displayName}
 				host={instance.host}
 				port={instance.port}
-				onback={handleBack}
+				onback={goHome}
 			/>
 		{/if}
 
