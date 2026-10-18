@@ -171,6 +171,24 @@ describe('InstanceCard — action buttons', () => {
 	});
 });
 
+// ── name link ─────────────────────────────────────────────────────────────────
+
+describe('InstanceCard — name link', () => {
+	test('the name links to the instance view when connectable', () => {
+		render(InstanceCard, { instance: { ...base, label: 'Studio' } });
+		expect(screen.getByRole('link', { name: 'Studio' })).toHaveAttribute(
+			'href',
+			'#/i/192.168.1.1/8080?label=Studio',
+		);
+	});
+
+	test('the name is plain text when the instance cannot be opened', () => {
+		render(InstanceCard, { instance: { ...base, label: 'Studio', status: 'offline' } });
+		expect(screen.getByRole('heading', { name: 'Studio' })).toBeInTheDocument();
+		expect(screen.queryByRole('link', { name: 'Studio' })).not.toBeInTheDocument();
+	});
+});
+
 // ── now playing ───────────────────────────────────────────────────────────────
 
 describe('InstanceCard — now playing', () => {
@@ -179,6 +197,13 @@ describe('InstanceCard — now playing', () => {
 	test('shows the player block when online with an active player', () => {
 		render(InstanceCard, { instance: { ...base, players: [mpd] } });
 		expect(screen.getByRole('region', { name: 'Now playing' })).toBeInTheDocument();
+	});
+
+	test('the track text links to the instance view', () => {
+		render(InstanceCard, { instance: { ...base, players: [mpd] } });
+		const region = screen.getByRole('region', { name: 'Now playing' });
+		const link = region.querySelector('a.np-text');
+		expect(link).toHaveAttribute('href', '#/i/192.168.1.1/8080');
 	});
 
 	test('hides it when the instance is not online', () => {

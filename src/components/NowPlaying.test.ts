@@ -39,6 +39,16 @@ describe('NowPlaying — track', () => {
 		expect(screen.getByText('La Grosse Radio Reggae')).toBeInTheDocument();
 	});
 
+	test('the track text is a link when an href is given', () => {
+		render(NowPlaying, { host: 'raspodio.local', port: 8018, players: [mpd], href: '#/i/raspodio.local' });
+		expect(screen.getByRole('link', { name: /Naaman - Coco Wata/ })).toHaveAttribute('href', '#/i/raspodio.local');
+	});
+
+	test('the track text is plain without an href', () => {
+		renderWith([mpd]);
+		expect(screen.queryByRole('link')).not.toBeInTheDocument();
+	});
+
 	test('falls back to the player identity without a title', () => {
 		renderWith([{ ...mpd, metadata: {} }]);
 		expect(screen.getAllByText('Music Player Daemon')).toHaveLength(2);
