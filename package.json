@@ -13,7 +13,7 @@
     "test:watch": "NODE_OPTIONS=--no-experimental-webstorage vitest"
   },
   "overrides": {
-    "minimatch": ">=10.2.3",
+    "minimatch": "^11.0.1",
     "serialize-javascript": ">=7.0.3",
     "@babel/core": "^7.29.6"
   },
