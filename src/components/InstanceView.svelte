@@ -10,6 +10,7 @@
 	import PowerScreen from './PowerScreen.svelte';
 	import SavePrompt from './SavePrompt.svelte';
 	import ConnectionStatusScreen from './ConnectionStatusScreen.svelte';
+	import UpdatePrompt from './UpdatePrompt.svelte';
 
 	const DEFAULT_PORT = 8018;
 
@@ -68,6 +69,11 @@
 	// delay the power screen takes over as before. Keyed by id: an instance
 	// opened while already reconnecting has no page to keep.
 	let uiShownFor = $state<string | null>(null);
+	// odio-api version the iframe was loaded with. A kept iframe can outlive
+	// an update: when the server comes back with another version, offer a
+	// reload rather than forcing one (it would lose the user's page).
+	let frameVersion = $state<string | undefined>();
+	let updatedTo = $state<string | null>(null);
 
 	function handlePowerAction(action: PowerEvent) {
 		powerEvent = action;
@@ -94,6 +100,8 @@
 		connectedId = id;
 		serverWentOffline = false;
 		waiting = false;
+		frameVersion = undefined;
+		updatedTo = null;
 		// A leftover save prompt from a previous instance must not surface here.
 		appState.savePromptVisible = false;
 		appState.connectOne(id, powerCallbacks);
@@ -115,7 +123,7 @@
 				serverWentOffline = false;
 				waiting = false;
 				powerEvent = null;
-				iframeKey++;
+				reloadFrame();
 			}
 		}
 	});
@@ -153,6 +161,33 @@
 
 	// The iframe is on screen and live: no power screen, no reconnection.
 	const showingUi = $derived(frameMounted && !reconnecting);
+
+	// The first version seen with the UI live is the one it was loaded with;
+	// a different one later means odio-api was updated under the iframe.
+	$effect(() => {
+		const version = instance?.serverInfo?.api_version;
+		if (!showingUi || instance?.status !== 'online' || !version) return;
+		untrack(() => {
+			if (frameVersion === undefined) frameVersion = version;
+			else if (version !== frameVersion) updatedTo = version;
+		});
+	});
+
+	// A fresh iframe on the UI home, loaded with the current version. Set it
+	// here: the version effect does not re-run on a reload, so leaving it
+	// unset would take the next update's version as the reference.
+	function reloadFrame() {
+		iframeKey++;
+		frameVersion = instance?.serverInfo?.api_version;
+		updatedTo = null;
+	}
+
+	// Keep the current page; the new version becomes the reference so the
+	// next blip does not ask again.
+	function closeUpdatePrompt() {
+		if (updatedTo) frameVersion = updatedTo;
+		updatedTo = null;
+	}
 
 	function startWaiting() {
 		waiting = true;
@@ -247,6 +282,10 @@
 				port={instance.port}
 				onback={goHome}
 			/>
+		{/if}
+
+		{#if updatedTo && showingUi}
+			<UpdatePrompt version={updatedTo} onreload={reloadFrame} onclose={closeUpdatePrompt} />
 		{/if}
 
 		{#if appState.savePromptVisible && instance.transient}

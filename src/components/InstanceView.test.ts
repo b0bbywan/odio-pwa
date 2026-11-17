@@ -81,6 +81,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mockInstance.status = 'online';
 	mockInstance2.status = 'online';
+	mockInstance.serverInfo = undefined;
 	mockInstance.transient = undefined;
 	mockInstance.connectedAt = undefined;
 	capturedCallbacks.onPowerAction = undefined;
@@ -449,6 +450,84 @@ describe('InstanceView — reconnecting', () => {
 		await fireEvent.click(screen.getByTitle('Back to list'));
 		expect(mockState.savePromptVisible).toBe(true);
 		expect(goHome).not.toHaveBeenCalled();
+	});
+});
+
+// ── odio-api updated ──────────────────────────────────────────────────────────
+
+describe('InstanceView — odio-api updated', () => {
+	const serverInfo = (api_version: string) => ({
+		hostname: 'pi',
+		os_platform: 'linux',
+		os_version: '6.1',
+		api_sw: 'odio-api',
+		api_version,
+		backends: { mpris: false, pulseaudio: false, systemd: false, zeroconf: false },
+	});
+
+	// The connection layer sets serverInfo before reporting online.
+	function restartAs(version: string) {
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		flushSync(() => {
+			mockInstance.serverInfo = serverInfo(version);
+			mockInstance.status = 'online';
+		});
+	}
+
+	beforeEach(() => {
+		mockInstance.serverInfo = serverInfo('0.8.2');
+	});
+
+	test('no prompt when odio-api comes back with the same version', () => {
+		render(InstanceView, defaultParams);
+		restartAs('0.8.2');
+		expect(screen.queryByText(/odio-api was updated/)).not.toBeInTheDocument();
+	});
+
+	test('offers a reload when odio-api comes back with another version', () => {
+		render(InstanceView, defaultParams);
+		const before = document.querySelector('iframe');
+		restartAs('0.9.0');
+		expect(screen.getByText('odio-api was updated to 0.9.0')).toBeInTheDocument();
+		// Nothing reloaded on its own.
+		expect(document.querySelector('iframe')).toBe(before);
+	});
+
+	test('Reload rebuilds the iframe and closes the prompt', async () => {
+		render(InstanceView, defaultParams);
+		const before = document.querySelector('iframe');
+		restartAs('0.9.0');
+		await fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+		expect(document.querySelector('iframe')).not.toBe(before);
+		expect(screen.queryByText(/odio-api was updated/)).not.toBeInTheDocument();
+	});
+
+	test('offers the next update after a Reload', async () => {
+		render(InstanceView, defaultParams);
+		restartAs('0.9.0');
+		await fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+		// No restart in between: the next one already brings the new version.
+		restartAs('1.0.0');
+		expect(screen.getByText('odio-api was updated to 1.0.0')).toBeInTheDocument();
+	});
+
+	test('Close keeps the iframe and does not ask again for the same version', async () => {
+		render(InstanceView, defaultParams);
+		const before = document.querySelector('iframe');
+		restartAs('0.9.0');
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		expect(document.querySelector('iframe')).toBe(before);
+		expect(screen.queryByText(/odio-api was updated/)).not.toBeInTheDocument();
+		restartAs('0.9.0');
+		expect(screen.queryByText(/odio-api was updated/)).not.toBeInTheDocument();
+	});
+
+	test('no prompt after a reboot, which reloads the iframe anyway', () => {
+		render(InstanceView, defaultParams);
+		flushSync(() => capturedCallbacks.onPowerAction?.('reboot'));
+		restartAs('0.9.0');
+		expect(screen.getByTitle('odio-api UI - Pi')).toBeInTheDocument();
+		expect(screen.queryByText(/odio-api was updated/)).not.toBeInTheDocument();
 	});
 });
 
