@@ -265,7 +265,7 @@ describe('createConnection — probe failure', () => {
 		vi.useFakeTimers();
 		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
 		const cb = makeCallbacks();
-		const destroy = createConnection('h', 8080, cb);
+		const { destroy } = createConnection('h', 8080, cb);
 		await drainMicrotasks();
 		destroy();
 		await vi.advanceTimersByTimeAsync(10_000);
@@ -417,7 +417,7 @@ describe('createConnection — visibility change', () => {
 		vi.useFakeTimers();
 		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
 		const cb = makeCallbacks();
-		const destroy = createConnection('h', 8080, cb);
+		const { destroy } = createConnection('h', 8080, cb);
 		await drainMicrotasks(); // probe fails → retry timer scheduled
 		destroy();
 		cb.onStatus.mockClear();
@@ -425,6 +425,67 @@ describe('createConnection — visibility change', () => {
 		document.dispatchEvent(new Event('visibilitychange'));
 		await drainMicrotasks();
 		expect(cb.onStatus).not.toHaveBeenCalled(); // destroyed connection ignores visibilitychange
+	});
+});
+
+// ── retry after give-up ───────────────────────────────────────────────────────
+
+describe('createConnection — retry', () => {
+	// Online, then lost for good: retries run until the give-up.
+	async function lostAndGivenUp(cb: ReturnType<typeof makeCallbacks>) {
+		const connection = createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe ok → online
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		capturedSSE!.onOpen();
+		capturedSSE!.onOffline();
+		await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER_MS + 30_000);
+		expect(cb.onGiveUp).toHaveBeenCalledOnce();
+		return connection;
+	}
+
+	test('nothing probes after the give-up without a retry', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		await lostAndGivenUp(cb);
+		const probes = vi.mocked(probeInstance).mock.calls.length;
+		await vi.advanceTimersByTimeAsync(5 * 60_000);
+		expect(probeInstance).toHaveBeenCalledTimes(probes);
+	});
+
+	test('retry after the give-up reconnects when the server is back', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		const connection = await lostAndGivenUp(cb);
+		vi.mocked(probeInstance).mockResolvedValue(mockInfo);
+		connection.retry();
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenLastCalledWith('online');
+	});
+
+	test('retry starts a full new round: reconnecting, give-up only after another delay', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		const connection = await lostAndGivenUp(cb);
+		cb.onStatus.mockClear();
+		connection.retry();
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenLastCalledWith('reconnecting');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('probing');
+		await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER_MS - 10_000);
+		expect(cb.onGiveUp).toHaveBeenCalledOnce(); // still the first one
+		await vi.advanceTimersByTimeAsync(40_000);
+		expect(cb.onGiveUp).toHaveBeenCalledTimes(2);
+	});
+
+	test('retry on a destroyed connection does nothing', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		const connection = await lostAndGivenUp(cb);
+		connection.destroy();
+		const probes = vi.mocked(probeInstance).mock.calls.length;
+		connection.retry();
+		await drainMicrotasks();
+		expect(probeInstance).toHaveBeenCalledTimes(probes);
 	});
 });
 

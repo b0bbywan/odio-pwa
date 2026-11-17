@@ -58,14 +58,20 @@ export async function classifyProbeFailure(
  * then 'offline'. A server never online (down, blocked, cors) is never
  * 'reconnecting': there is nothing to come back to.
  *
- * Returns a destroy() function that cancels everything immediately.
+ * destroy() cancels everything immediately. retry() starts a fresh round of
+ * retries, as if the server had just been lost: the way back after a give-up.
  */
+export interface Connection {
+	destroy(): void;
+	retry(): void;
+}
+
 export function createConnection(
 	host: string,
 	port: number,
 	callbacks: ConnectionCallbacks,
 	options: { useSSE?: boolean } = {},
-): () => void {
+): Connection {
 	let destroyed = false;
 	let retryTimer: ReturnType<typeof setTimeout> | null = null;
 	let closeSSE: (() => void) | null = null;
@@ -117,13 +123,24 @@ export function createConnection(
 	// scheduled probe.
 	function onVisibilityChange() {
 		if (document.visibilityState !== 'visible' || destroyed) return;
+		attemptNow();
+	}
+	document.addEventListener('visibilitychange', onVisibilityChange);
+
+	function attemptNow() {
 		if (retryTimer !== null) {
 			clearTimeout(retryTimer);
 			retryTimer = null;
 		}
 		attempt();
 	}
-	document.addEventListener('visibilitychange', onVisibilityChange);
+
+	function retry() {
+		if (destroyed) return;
+		failingSince = null;
+		backoffMs = BACKOFF_INITIAL_MS;
+		attemptNow();
+	}
 
 	function destroy() {
 		destroyed = true;
@@ -272,5 +289,5 @@ export function createConnection(
 	}
 
 	attempt();
-	return destroy;
+	return { destroy, retry };
 }

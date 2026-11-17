@@ -82,9 +82,12 @@
 	// Called by the connection layer after retries are exhausted. For an
 	// instance we already reached, treat it as a poweroff so the user can wait.
 	// For a host we never connected to (e.g. a typo'd deep link), the offline
-	// status screen is more honest than "Server is shutting down".
+	// status screen is more honest than "Server is shutting down". Once the
+	// user chose to wait, keep trying however long the server takes (a
+	// poweroff waits for someone to switch it back on).
 	function handleGiveUp() {
-		if (instance?.connectedAt) powerEvent = 'poweroff';
+		if (waiting && connectedId !== null) appState.retryOne(connectedId);
+		else if (instance?.connectedAt) powerEvent = 'poweroff';
 	}
 
 	const powerCallbacks = { onPowerAction: handlePowerAction, onGiveUp: handleGiveUp };
@@ -196,7 +199,7 @@
 	function startWaiting() {
 		waiting = true;
 		// Restart retries - give-up may have stopped them (common on mobile after backgrounding)
-		if (connectedId !== null) appState.connectOne(connectedId, powerCallbacks);
+		if (connectedId !== null) appState.retryOne(connectedId);
 	}
 
 	function dismiss() {

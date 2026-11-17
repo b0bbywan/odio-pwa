@@ -459,6 +459,28 @@ describe('probeOne', () => {
 	});
 });
 
+describe('retryOne', () => {
+	test('tries the existing connection again, without tearing it down', async () => {
+		const s = new AppState();
+		s.addInstance('192.168.1.1', 8080);
+		await flushPromises();
+		const first = lastSSE();
+		await first.onOpen();
+		first.onOffline(); // lost: reconnecting
+		expect(s.instances[0].status).toBe('reconnecting');
+		const probes = vi.mocked(probeInstance).mock.calls.length;
+		s.retryOne(s.instances[0].id);
+		await flushPromises();
+		expect(probeInstance).toHaveBeenCalledTimes(probes + 1);
+		expect(s.instances[0].status).toBe('online');
+	});
+
+	test('is a no-op when the instance has no connection', () => {
+		const s = new AppState();
+		expect(() => s.retryOne('non-existent')).not.toThrow();
+	});
+});
+
 // ─── SSE callback effects ────────────────────────────────────────────────────
 
 describe('onOpen callback', () => {

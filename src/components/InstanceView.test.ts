@@ -53,6 +53,7 @@ vi.mock('../lib/state.svelte', () => ({
 			capturedCallbacks.onGiveUp = extra?.onGiveUp;
 		}),
 		disconnectOne: vi.fn(),
+		retryOne: vi.fn(),
 		openInstance: vi.fn(),
 		persistInstance: vi.fn(),
 		removeInstance: vi.fn(),
@@ -229,16 +230,29 @@ describe('InstanceView — poweroff', () => {
 		expect(goHome).toHaveBeenCalledOnce();
 	});
 
-	test('clicking Wait restarts the connection', async () => {
+	test('clicking Wait retries the existing connection', async () => {
 		mockInstance.connectedAt = Date.now();
 		render(InstanceView, defaultParams);
 		flushSync(() => capturedCallbacks.onGiveUp?.());
 		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
-		expect(appState.connectOne).toHaveBeenCalledTimes(2); // mount + restart
-		expect(appState.connectOne).toHaveBeenLastCalledWith('1', {
-			onPowerAction: expect.any(Function),
-			onGiveUp: expect.any(Function),
-		});
+		expect(appState.retryOne).toHaveBeenCalledExactlyOnceWith('1');
+	});
+
+	test('giving up again while waiting retries instead of stopping', async () => {
+		mockInstance.connectedAt = Date.now();
+		render(InstanceView, defaultParams);
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		await fireEvent.click(screen.getByRole('button', { name: 'Wait' }));
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		expect(appState.retryOne).toHaveBeenCalledTimes(2);
+		expect(screen.getByText(/Waiting for comeback/)).toBeInTheDocument();
+	});
+
+	test('giving up without waiting does not retry', () => {
+		mockInstance.connectedAt = Date.now();
+		render(InstanceView, defaultParams);
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		expect(appState.retryOne).not.toHaveBeenCalled();
 	});
 
 	test('clicking Wait switches to waiting spinner', async () => {
