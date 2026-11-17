@@ -184,9 +184,11 @@ export function createConnection(
 			closeSSE();
 			closeSSE = null;
 		}
-		// Show 'probing' only on the first attempt — during retries stay 'offline'
-		// to avoid red→yellow flickering on the homepage for a known-down server.
-		if (failingSince === null) callbacks.onStatus('probing');
+		// Show 'probing' only until the server is first reached. During retries
+		// stay 'offline' (no red-to-yellow flicker for a known-down server), and
+		// a re-check of a server that is up (resume, probe-only polling) keeps
+		// 'online' so the UI does not drop the open instance for a round trip.
+		if (failingSince === null && !everOnline) callbacks.onStatus('probing');
 		let info: OdioServerInfo;
 		try {
 			info = await probeInstance(host, port);
