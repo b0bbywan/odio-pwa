@@ -19,7 +19,7 @@ export interface OdioInstance {
 	port: number;
 	label?: string;
 	serverInfo?: OdioServerInfo | null;
-	status: 'unknown' | 'online' | 'offline' | 'probing' | 'blocked' | 'cors';
+	status: 'unknown' | 'online' | 'reconnecting' | 'offline' | 'probing' | 'blocked' | 'cors';
 	connectedAt?: number;
 	// Loaded from URL params; not persisted to localStorage until the user saves.
 	transient?: boolean;

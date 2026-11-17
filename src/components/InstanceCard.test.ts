@@ -67,6 +67,13 @@ describe('InstanceCard — status class', () => {
 		expect(screen.getByRole('article')).toHaveClass('status-offline');
 	});
 
+	test('reconnecting shows as offline: status-offline, "Server unreachable", Connect disabled', () => {
+		render(InstanceCard, { instance: { ...base, status: 'reconnecting' } });
+		expect(screen.getByRole('article')).toHaveClass('status-offline');
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Connect' })).toBeDisabled();
+	});
+
 	test('probing → status-probing', () => {
 		render(InstanceCard, { instance: { ...base, status: 'probing' } });
 		expect(screen.getByRole('article')).toHaveClass('status-probing');

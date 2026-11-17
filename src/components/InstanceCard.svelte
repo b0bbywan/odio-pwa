@@ -10,6 +10,8 @@
 	let editing = $state(false);
 
 	const displayName = $derived(nameOf(instance));
+	// A card has no reconnecting look of its own yet: it shows as offline.
+	const status = $derived(instance.status === 'reconnecting' ? 'offline' : instance.status);
 	// The name and the track open the instance too, not only Connect.
 	const href = $derived(
 		isConnectable(instance.status)
@@ -27,16 +29,14 @@
 	);
 
 	const hasStatusMessage = $derived(
-		instance.status === 'cors' ||
-			instance.status === 'blocked' ||
-			instance.status === 'offline',
+		status === 'cors' || status === 'blocked' || status === 'offline',
 	);
 </script>
 
 {#if editing}
 	<AddInstanceForm editInstance={instance} onclose={() => (editing = false)} />
 {:else}
-	<article class="instance-card status-{instance.status}">
+	<article class="instance-card status-{status}">
 		<div class="card-header">
 			<span class="status-dot"></span>
 			<h3 title={displayName}>
@@ -63,16 +63,16 @@
 		{#if hasStatusMessage}
 			<div
 				class="card-status-message"
-				class:warn={instance.status === 'blocked' || instance.status === 'cors'}
+				class:warn={status === 'blocked' || status === 'cors'}
 			>
 				<small>
-					{#if instance.status === 'cors'}
+					{#if status === 'cors'}
 						Server reachable: missing
 						<a href={corsDocsHref} target="_blank" rel="noopener noreferrer">CORS headers</a>
-					{:else if instance.status === 'blocked'}
+					{:else if status === 'blocked'}
 						Browser blocked
 						(<a href={lanDocsHref} target="_blank" rel="noopener noreferrer">mixed content</a>)
-					{:else if instance.status === 'offline'}
+					{:else if status === 'offline'}
 						Server unreachable
 					{/if}
 				</small>

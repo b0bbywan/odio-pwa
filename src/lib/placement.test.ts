@@ -22,6 +22,13 @@ describe('ListPlacements', () => {
 		expect(ids(p.order(list))).toEqual(['raspodio', 'htpc', 'local', 'nas']);
 	});
 
+	test('a reconnecting instance is unreachable, like an offline one', () => {
+		const list = [inst('local', 'reconnecting'), inst('raspodio', 'online')];
+		const p = new ListPlacements();
+		p.update(list);
+		expect(ids(p.order(list))).toEqual(['raspodio', 'local']);
+	});
+
 	test('leaves unsettled instances in place', () => {
 		const list = [inst('local', 'probing'), inst('raspodio', 'unknown')];
 		const p = new ListPlacements();

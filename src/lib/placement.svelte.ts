@@ -9,7 +9,7 @@ type Placement = (typeof PLACEMENTS)[number];
 // Which group of the list an instance belongs to once its status is settled;
 // null while it is still unknown or probing.
 function placementOf(inst: OdioInstance): Placement | null {
-	if (inst.status === 'offline' || inst.status === 'blocked') return 'unreachable';
+	if (['offline', 'reconnecting', 'blocked'].includes(inst.status)) return 'unreachable';
 	if (!isConnectable(inst.status)) return null;
 	const players = (inst.status === 'online' && inst.players) || [];
 	if (players.some((p) => p.playback_status === 'Playing')) return 'playing';
