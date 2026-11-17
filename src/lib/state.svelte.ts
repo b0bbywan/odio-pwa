@@ -1,5 +1,5 @@
 import type { OdioInstance } from './types';
-import { createConnection, type ConnectionCallbacks } from './connection';
+import { createConnection, type Connection, type ConnectionCallbacks } from './connection';
 import { instancePath, isConnectable } from './instance';
 import { push } from 'svelte-spa-router';
 
@@ -53,8 +53,8 @@ export class AppState {
 	savePromptVisible: boolean = $state(false);
 
 	// SSE connections (max SSE_LIMIT); polling connections for the rest
-	private sseConnections = new Map<string, () => void>();
-	private pollConnections = new Map<string, () => void>();
+	private sseConnections = new Map<string, Connection>();
+	private pollConnections = new Map<string, Connection>();
 	// Power callbacks set by InstanceView while it's the foreground view.
 	// Looked up dynamically inside the connection wrappers, so a second
 	// connectOne (e.g. background pool then foreground attach) just swaps
@@ -159,7 +159,7 @@ export class AppState {
 		if (extra) this.foregroundCallbacks.set(id, extra);
 		else this.foregroundCallbacks.delete(id);
 		if (this.sseConnections.has(id)) return;
-		const destroy = createConnection(inst.host, inst.port, {
+		const connection = createConnection(inst.host, inst.port, {
 			...this.instanceCallbacks(inst),
 			onGiveUp: () => this.foregroundCallbacks.get(id)?.onGiveUp?.(),
 			onPowerAction: (action) => this.foregroundCallbacks.get(id)?.onPowerAction?.(action),
@@ -167,11 +167,18 @@ export class AppState {
 				inst.players = players;
 			},
 		});
-		this.sseConnections.set(id, destroy);
+		this.sseConnections.set(id, connection);
+	}
+
+	// Try again after the connection gave up, keeping what it knows (the
+	// server was online, so it is reconnecting). connectOne would not: it
+	// leaves an existing connection alone.
+	retryOne(id: string): void {
+		this.sseConnections.get(id)?.retry();
 	}
 
 	disconnectOne(id: string): void {
-		this.sseConnections.get(id)?.();
+		this.sseConnections.get(id)?.destroy();
 		this.sseConnections.delete(id);
 		this.foregroundCallbacks.delete(id);
 	}
@@ -180,15 +187,15 @@ export class AppState {
 		const inst = this.instances.find((i) => i.id === id);
 		if (!inst) return;
 		this.stopPolling(id);
-		const destroy = createConnection(inst.host, inst.port, {
+		const connection = createConnection(inst.host, inst.port, {
 			...this.instanceCallbacks(inst),
 			onGiveUp: () => {}, // background instances have no power UI
 		}, { useSSE: false });
-		this.pollConnections.set(id, destroy);
+		this.pollConnections.set(id, connection);
 	}
 
 	private stopPolling(id: string): void {
-		this.pollConnections.get(id)?.();
+		this.pollConnections.get(id)?.destroy();
 		this.pollConnections.delete(id);
 	}
 
@@ -207,9 +214,9 @@ export class AppState {
 	}
 
 	disconnectAll(): void {
-		this.sseConnections.forEach((destroy) => destroy());
+		this.sseConnections.forEach((c) => c.destroy());
 		this.sseConnections.clear();
-		this.pollConnections.forEach((destroy) => destroy());
+		this.pollConnections.forEach((c) => c.destroy());
 		this.pollConnections.clear();
 	}
 
