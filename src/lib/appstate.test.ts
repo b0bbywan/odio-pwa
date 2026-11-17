@@ -370,7 +370,7 @@ describe('connectOne / disconnectOne', () => {
 		await onOpen(); // SSE was open before dropping
 		onOffline();
 		expect(cleanup).toHaveBeenCalledOnce(); // SSE torn down
-		expect(s.instances[0].status).toBe('offline');
+		expect(s.instances[0].status).toBe('reconnecting');
 		// No immediate new SSE — retry is scheduled with backoff
 		expect(connectSSE).toHaveBeenCalledOnce();
 	});
@@ -503,13 +503,13 @@ describe('onAlive callback', () => {
 });
 
 describe('onOffline callback', () => {
-	test('sets status to offline when SSE was open', async () => {
+	test('sets status to reconnecting when SSE was open', async () => {
 		const s = new AppState();
 		s.addInstance('192.168.1.1', 8080);
 		await flushPromises();
 		await lastSSE().onOpen(); // SSE was open before dropping
 		lastSSE().onOffline();
-		expect(s.instances[0].status).toBe('offline');
+		expect(s.instances[0].status).toBe('reconnecting');
 	});
 });
 

@@ -212,7 +212,7 @@ describe('createConnection — probe failure', () => {
 		expect(cb.onGiveUp).toHaveBeenCalledOnce();
 	});
 
-	test('after a successful probe, later failures are offline (no re-classification as blocked/cors)', async () => {
+	test('after a successful probe, later failures are reconnecting (no re-classification as blocked/cors)', async () => {
 		vi.useFakeTimers();
 		const cb = makeCallbacks();
 		createConnection('h', 8080, cb);
@@ -221,12 +221,44 @@ describe('createConnection — probe failure', () => {
 		// Server goes down - probe + no-cors both fail.
 		vi.mocked(probeInstance).mockRejectedValue(new TypeError('Failed to fetch'));
 		vi.mocked(probeReachable).mockResolvedValue(false);
-		capturedSSE!.onOpen(); // mark sseEverOpened so onSSEDisconnect emits 'offline' (not the fallback path)
+		capturedSSE!.onOpen(); // mark sseEverOpened so onSSEDisconnect reports the loss (not the fallback path)
 		capturedSSE!.onOffline(); // SSE drops → schedules a retry probe
+		cb.onStatus.mockClear();
 		await vi.advanceTimersByTimeAsync(1_000);
-		// The retry probe failed - must be 'offline', never 'blocked' or 'cors'.
+		// The retry probe failed - still reconnecting, never 'blocked' or 'cors'.
+		expect(cb.onStatus).toHaveBeenCalledWith('reconnecting');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
 		expect(cb.onStatus).not.toHaveBeenCalledWith('blocked');
 		expect(cb.onStatus).not.toHaveBeenCalledWith('cors');
+	});
+
+	test('a lost server is offline once retries give up', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe ok → online
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		capturedSSE!.onOpen();
+		capturedSSE!.onOffline();
+		await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER_MS + 30_000);
+		expect(cb.onGiveUp).toHaveBeenCalledOnce();
+		expect(cb.onStatus).toHaveBeenLastCalledWith('offline');
+	});
+
+	test('a re-check after the give-up stays offline', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe ok → online
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		capturedSSE!.onOpen();
+		capturedSSE!.onOffline();
+		await vi.advanceTimersByTimeAsync(GIVE_UP_AFTER_MS + 30_000);
+		cb.onStatus.mockClear();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).not.toHaveBeenCalledWith('reconnecting');
+		expect(cb.onStatus).toHaveBeenLastCalledWith('offline');
 	});
 
 	test('destroy cancels pending retry timer', async () => {
@@ -253,7 +285,8 @@ describe('createConnection — SSE disconnect', () => {
 		await onOpen(); // SSE was open before dropping
 		onOffline();
 		expect(cleanup).toHaveBeenCalledOnce();
-		expect(cb.onStatus).toHaveBeenCalledWith('offline');
+		expect(cb.onStatus).toHaveBeenCalledWith('reconnecting');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
 	});
 
 	test('retries with probe + SSE after backoff following disconnect', async () => {
@@ -292,6 +325,7 @@ describe('createConnection — SSE unsupported', () => {
 		capturedSSE!.onOffline(); // SSE error before onOpen → not supported
 		// Probe already succeeded → status stays 'online', no red flash
 		expect(cb.onStatus).not.toHaveBeenCalledWith('offline');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('reconnecting');
 		// After backoff, retries as probe-only (no new SSE)
 		await vi.advanceTimersByTimeAsync(1_000);
 		expect(connectSSE).toHaveBeenCalledOnce(); // no second SSE attempt
@@ -348,6 +382,35 @@ describe('createConnection — visibility change', () => {
 		await drainMicrotasks();
 		expect(cb.onStatus).not.toHaveBeenCalledWith('probing');
 		expect(cb.onStatus).toHaveBeenCalledWith('online');
+	});
+
+	test('stays cors while re-checking a server without CORS headers', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockRejectedValue(new TypeError('Failed to fetch'));
+		vi.mocked(probeReachable).mockResolvedValue(true);
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe fails, no-cors answers → cors
+		cb.onStatus.mockClear();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).not.toHaveBeenCalledWith('probing');
+		expect(cb.onStatus).toHaveBeenCalledWith('cors');
+	});
+
+	test('a cors server that goes down is offline, not reconnecting', async () => {
+		vi.useFakeTimers();
+		vi.mocked(probeInstance).mockRejectedValue(new TypeError('Failed to fetch'));
+		vi.mocked(probeReachable).mockResolvedValue(true);
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // → cors
+		vi.mocked(probeReachable).mockResolvedValue(false); // host gone
+		cb.onStatus.mockClear();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).toHaveBeenCalledWith('offline');
+		expect(cb.onStatus).not.toHaveBeenCalledWith('reconnecting');
 	});
 
 	test('destroy removes the listener', async () => {
@@ -545,6 +608,16 @@ describe('createConnection — useSSE: false', () => {
 		await drainMicrotasks(); // initial probe
 		await vi.advanceTimersByTimeAsync(30_000); // next probe
 		expect(cb.onStatus.mock.calls.filter(([s]) => s === 'probing')).toHaveLength(1);
+	});
+
+	test('a server lost between two probes is reconnecting', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb, { useSSE: false });
+		await drainMicrotasks(); // initial probe → online
+		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
+		await vi.advanceTimersByTimeAsync(30_000); // next probe fails
+		expect(cb.onStatus).toHaveBeenLastCalledWith('reconnecting');
 	});
 
 	test('gives up after GIVE_UP_AFTER_MS of probe failures', async () => {

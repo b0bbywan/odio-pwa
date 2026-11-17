@@ -9,7 +9,7 @@ const BACKOFF_MAX_MS = 30_000;
 export const GIVE_UP_AFTER_MS = 90_000;
 
 export interface ConnectionCallbacks {
-	onStatus(status: 'probing' | 'online' | 'offline' | 'blocked' | 'cors'): void;
+	onStatus(status: 'probing' | 'online' | 'reconnecting' | 'offline' | 'blocked' | 'cors'): void;
 	onServerInfo(info: OdioServerInfo): void;
 	onGiveUp(): void;
 	onPowerAction?(action: 'reboot' | 'poweroff'): void;
@@ -54,6 +54,10 @@ export async function classifyProbeFailure(
  * Probe-only path (useSSE = false, or after SSE proved unsupported):
  *   probe /server → wait 30 s → probe again → … → give up after 90 s of consecutive failures
  *
+ * A server lost after it was online is 'reconnecting' until the give-up,
+ * then 'offline'. A server never online (down, blocked, cors) is never
+ * 'reconnecting': there is nothing to come back to.
+ *
  * Returns a destroy() function that cancels everything immediately.
  */
 export function createConnection(
@@ -76,8 +80,11 @@ export function createConnection(
 
 	// classifyProbeFailure is for first-contact disambiguation. Once we've
 	// reached the server, the browser has obviously permitted the request, so
-	// later failures can't be 'blocked' (mixed content) or 'cors' - just offline.
+	// later failures can't be 'blocked' (mixed content) or 'cors' - the server is lost.
 	let everOnline = false;
+	// The server answered, with or without CORS headers. A re-check of it
+	// keeps its status instead of flashing 'probing'.
+	let everReached = false;
 
 	// Capabilities only change with odio-api's config, so fetch them once per
 	// contact: reset whenever the server is lost, it may come back reconfigured.
@@ -129,12 +136,17 @@ export function createConnection(
 		closeSSE = null;
 	}
 
+	function pastGiveUp() {
+		return failingSince !== null && Date.now() - failingSince >= GIVE_UP_AFTER_MS;
+	}
+
 	function scheduleRetry() {
 		if (destroyed || retryTimer !== null) return;
-		const now = Date.now();
 		if (failingSince === null) {
-			failingSince = now;
-		} else if (now - failingSince >= GIVE_UP_AFTER_MS) {
+			failingSince = Date.now();
+		} else if (pastGiveUp()) {
+			// No more retries: a lost server is no longer reconnecting.
+			if (everOnline) callbacks.onStatus('offline');
 			callbacks.onGiveUp();
 			return;
 		}
@@ -149,13 +161,18 @@ export function createConnection(
 	// Does NOT affect SSE support state.
 	async function onProbeFailure(err: unknown) {
 		powerFetched = false;
-		const status = everOnline ? 'offline' : await classifyProbeFailure(err, host, port);
+		// Past the give-up (a resume re-check), retries are over: stay 'offline'.
+		const lost = pastGiveUp() ? 'offline' : 'reconnecting';
+		const status = everOnline ? lost : await classifyProbeFailure(err, host, port);
 		if (destroyed) return;
 		callbacks.onStatus(status);
 		// CORS means the server is reachable but missing Access-Control-Allow-Origin.
 		// Headers won't appear on their own, retrying just spams the console.
 		// A visibilitychange can still trigger a fresh probe in case config changed.
-		if (status === 'cors') return;
+		if (status === 'cors') {
+			everReached = true;
+			return;
+		}
 		scheduleRetry();
 	}
 
@@ -170,7 +187,7 @@ export function createConnection(
 		closeSSE?.();
 		closeSSE = null;
 		powerFetched = false;
-		if (wasOpen && !destroyed) callbacks.onStatus('offline');
+		if (wasOpen && !destroyed) callbacks.onStatus('reconnecting');
 		// No more events: don't leave a stale "now playing" behind.
 		if (players.length > 0 && !destroyed) setPlayers([]);
 		scheduleRetry();
@@ -185,10 +202,11 @@ export function createConnection(
 			closeSSE = null;
 		}
 		// Show 'probing' only until the server is first reached. During retries
-		// stay 'offline' (no red-to-yellow flicker for a known-down server), and
-		// a re-check of a server that is up (resume, probe-only polling) keeps
-		// 'online' so the UI does not drop the open instance for a round trip.
-		if (failingSince === null && !everOnline) callbacks.onStatus('probing');
+		// keep the current status (no flicker for a known-down server), and a
+		// re-check of a server that answered (resume, probe-only polling) keeps
+		// 'online' or 'cors' so the UI does not drop the open instance for a
+		// round trip.
+		if (failingSince === null && !everReached) callbacks.onStatus('probing');
 		let info: OdioServerInfo;
 		try {
 			info = await probeInstance(host, port);
@@ -202,6 +220,7 @@ export function createConnection(
 		failingSince = null;
 		backoffMs = BACKOFF_INITIAL_MS;
 		everOnline = true;
+		everReached = true;
 		callbacks.onServerInfo(info);
 		callbacks.onStatus('online');
 		fetchPower(info);

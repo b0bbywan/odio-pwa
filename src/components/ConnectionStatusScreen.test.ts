@@ -5,7 +5,7 @@ import ConnectionStatusScreen from './ConnectionStatusScreen.svelte';
 const noop = () => {};
 
 function renderScreen(overrides: Partial<{
-	status: 'probing' | 'unknown' | 'offline' | 'blocked';
+	status: 'probing' | 'unknown' | 'reconnecting' | 'offline' | 'blocked';
 	displayName: string;
 	host: string;
 	port: number;
@@ -33,6 +33,12 @@ describe('ConnectionStatusScreen — probing', () => {
 	test('"unknown" status renders the same Connecting view', () => {
 		renderScreen({ status: 'unknown' });
 		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+	});
+
+	test('"reconnecting" renders the same Connecting view, not an error', () => {
+		renderScreen({ status: 'reconnecting' });
+		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+		expect(screen.queryByText('Server unreachable')).not.toBeInTheDocument();
 	});
 
 	test('back button calls onback', async () => {

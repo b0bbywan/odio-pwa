@@ -6,7 +6,7 @@
 		port,
 		onback,
 	}: {
-		status: 'probing' | 'unknown' | 'offline' | 'blocked';
+		status: 'probing' | 'unknown' | 'reconnecting' | 'offline' | 'blocked';
 		displayName: string;
 		host: string;
 		port: number;
@@ -14,7 +14,9 @@
 	} = $props();
 
 	const lanDocsHref = 'https://docs.odio.love/guides/pwa/#lan-access';
-	const probing = $derived(status === 'probing' || status === 'unknown');
+	// Reconnecting with no UI to keep (opened during the outage): the server
+	// is expected back, so this is a wait, not an error.
+	const probing = $derived(status === 'probing' || status === 'unknown' || status === 'reconnecting');
 </script>
 
 <div class="status-screen" role="status">
