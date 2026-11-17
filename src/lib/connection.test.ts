@@ -338,6 +338,18 @@ describe('createConnection — visibility change', () => {
 		expect(cb.onServerInfo).toHaveBeenCalled();
 	});
 
+	test('stays online while re-checking a server already reached', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb);
+		await drainMicrotasks(); // probe ok → online
+		cb.onStatus.mockClear();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await drainMicrotasks();
+		expect(cb.onStatus).not.toHaveBeenCalledWith('probing');
+		expect(cb.onStatus).toHaveBeenCalledWith('online');
+	});
+
 	test('destroy removes the listener', async () => {
 		vi.useFakeTimers();
 		vi.mocked(probeInstance).mockRejectedValue(new Error('down'));
@@ -524,6 +536,15 @@ describe('createConnection — useSSE: false', () => {
 		await drainMicrotasks(); // initial probe
 		await vi.advanceTimersByTimeAsync(30_000); // next probe
 		expect(probeInstance).toHaveBeenCalledTimes(2);
+	});
+
+	test('does not flash probing on each scheduled probe', async () => {
+		vi.useFakeTimers();
+		const cb = makeCallbacks();
+		createConnection('h', 8080, cb, { useSSE: false });
+		await drainMicrotasks(); // initial probe
+		await vi.advanceTimersByTimeAsync(30_000); // next probe
+		expect(cb.onStatus.mock.calls.filter(([s]) => s === 'probing')).toHaveLength(1);
 	});
 
 	test('gives up after GIVE_UP_AFTER_MS of probe failures', async () => {
