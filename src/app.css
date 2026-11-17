@@ -867,10 +867,51 @@ a.np-text:hover .np-title {
 	background: rgba(255, 255, 255, 0.08);
 }
 
+.instance-frame {
+	flex: 1;
+	min-height: 0;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
 .instance-iframe {
 	flex: 1;
 	width: 100%;
 	border: none;
+}
+
+.instance-veil {
+	position: absolute;
+	inset: 0;
+	background: color-mix(in srgb, var(--bg-primary) 48%, transparent);
+	pointer-events: none;
+}
+
+/* Reconnecting: the pill sits right after the name, which greys out. */
+.top-bar.reconnecting .current-name {
+	flex: 0 1 auto;
+	color: var(--text-secondary);
+}
+
+.top-bar.reconnecting .btn-switch {
+	margin-right: 0;
+}
+
+.reconnect-pill {
+	flex-shrink: 0;
+	margin: 0 auto 0 4px;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 9px;
+	border: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--warning) 12%, transparent);
+	color: var(--warning);
+	font-size: 0.75rem;
+	font-weight: 600;
+	white-space: nowrap;
 }
 
 .btn-save-instance {

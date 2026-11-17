@@ -11,6 +11,7 @@
 		ondashboard,
 		transient = false,
 		onsave,
+		reconnecting = false,
 	}: {
 		displayName: string;
 		currentId: string;
@@ -19,6 +20,8 @@
 		ondashboard?: () => void;
 		transient?: boolean;
 		onsave?: () => void;
+		// Connection lost while the UI stays on screen.
+		reconnecting?: boolean;
 	} = $props();
 
 	// Native modal dialog: Escape and focus handling for free, and the iframe
@@ -35,7 +38,7 @@
 	}
 </script>
 
-<nav class="top-bar">
+<nav class="top-bar" class:reconnecting>
 	<button class="btn-icon btn-home" onclick={onhome ?? goHome} title="Back to list">
 		<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
 			<path d="M3 10.5 12 3l9 7.5" />
@@ -77,6 +80,16 @@
 		</dialog>
 	{:else}
 		<span class="current-name">{displayName}</span>
+	{/if}
+
+	{#if reconnecting}
+		<span class="reconnect-pill" role="status">
+			<svg class="spin" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+				<polyline points="23 4 23 10 17 10" />
+				<path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+			</svg>
+			Reconnecting
+		</span>
 	{/if}
 
 	{#if transient && onsave}
