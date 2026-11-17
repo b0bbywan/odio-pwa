@@ -31,6 +31,26 @@ beforeEach(() => {
 
 // ── display ───────────────────────────────────────────────────────────────────
 
+describe('InstanceTopBar — reconnecting', () => {
+	test('no pill by default', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });
+		expect(screen.queryByRole('status')).not.toBeInTheDocument();
+	});
+
+	test('shows the Reconnecting pill when reconnecting', () => {
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), reconnecting: true });
+		expect(screen.getByRole('status')).toHaveTextContent('Reconnecting');
+		expect(document.querySelector('.top-bar')).toHaveClass('reconnecting');
+	});
+
+	test('pill also shows next to the instance switcher', () => {
+		(appState as { connectableInstances: OdioInstance[] }).connectableInstances = [inst('1', 'My Pi'), inst('2', 'Other')];
+		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn(), reconnecting: true });
+		expect(screen.getByTitle('Switch instance')).toBeInTheDocument();
+		expect(screen.getByRole('status')).toHaveTextContent('Reconnecting');
+	});
+});
+
 describe('InstanceTopBar — display', () => {
 	test('shows the displayName', () => {
 		render(InstanceTopBar, { displayName: 'My Pi', currentId: '1', onswitchto: vi.fn() });

@@ -4,21 +4,26 @@ import { flushSync } from 'svelte';
 import type { PowerEvent, OdioInstance } from '../lib/types';
 
 // vi.hoisted makes these available inside vi.mock factories, which are hoisted to the top.
-const mockInstance = vi.hoisted((): OdioInstance => ({
-	id: '1',
-	host: '192.168.1.1',
-	port: 8080,
-	label: 'Pi',
-	status: 'online',
-}));
-
-const mockInstance2 = vi.hoisted((): OdioInstance => ({
-	id: '2',
-	host: '192.168.1.2',
-	port: 8080,
-	label: 'Pi2',
-	status: 'online',
-}));
+// Reactive so a test can change the status after render, like the connection layer does.
+const { mockInstance, mockInstance2 } = await vi.hoisted(async () => {
+	const { reactive } = await import('../test/reactive.svelte');
+	return {
+		mockInstance: reactive<OdioInstance>({
+			id: '1',
+			host: '192.168.1.1',
+			port: 8080,
+			label: 'Pi',
+			status: 'online',
+		}),
+		mockInstance2: reactive<OdioInstance>({
+			id: '2',
+			host: '192.168.1.2',
+			port: 8080,
+			label: 'Pi2',
+			status: 'online',
+		}),
+	};
+});
 
 const capturedCallbacks = vi.hoisted(() => ({
 	onPowerAction: undefined as ((action: PowerEvent) => void) | undefined,
@@ -75,6 +80,7 @@ const defaultParams = params('192.168.1.1', '8080');
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockInstance.status = 'online';
+	mockInstance2.status = 'online';
 	mockInstance.transient = undefined;
 	mockInstance.connectedAt = undefined;
 	capturedCallbacks.onPowerAction = undefined;
@@ -260,6 +266,17 @@ describe('InstanceView — cors', () => {
 		render(InstanceView, defaultParams);
 		expect(document.querySelector('iframe')).toBeInTheDocument();
 	});
+
+	test('a cors server that goes down shows the offline screen, not a kept iframe', () => {
+		mockInstance.status = 'cors';
+		render(InstanceView, defaultParams);
+		// Never online, so the connection reports offline, not reconnecting.
+		flushSync(() => { mockInstance.status = 'offline'; });
+		flushSync(() => capturedCallbacks.onGiveUp?.());
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+		expect(screen.queryByText('Reconnecting')).not.toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
 });
 
 // ── connection status screen ──────────────────────────────────────────────────
@@ -319,6 +336,119 @@ describe('InstanceView — connection status screen', () => {
 		await fireEvent.click(within(screenEl).getByRole('button', { name: /back to list/i }));
 		expect(goHome).toHaveBeenCalledOnce();
 		expect(mockState.savePromptVisible).toBe(false);
+	});
+});
+
+// ── reconnecting ──────────────────────────────────────────────────────────────
+
+describe('InstanceView — reconnecting', () => {
+	test('keeps the same iframe when the connection drops after the UI was shown', () => {
+		render(InstanceView, defaultParams);
+		const before = document.querySelector('iframe');
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		expect(document.querySelector('iframe')).toBe(before);
+		expect(screen.queryByText(/Connecting to/)).not.toBeInTheDocument();
+	});
+
+	test('does not rebuild the iframe when the connection comes back', () => {
+		render(InstanceView, defaultParams);
+		const before = document.querySelector('iframe');
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		flushSync(() => { mockInstance.status = 'online'; });
+		expect(document.querySelector('iframe')).toBe(before);
+	});
+
+	test('opened while already reconnecting: waits on the status screen, no dead iframe', () => {
+		mockInstance.status = 'reconnecting';
+		render(InstanceView, defaultParams);
+		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+		expect(screen.queryByText('Reconnecting')).not.toBeInTheDocument();
+		flushSync(() => { mockInstance.status = 'online'; });
+		expect(document.querySelector('iframe')).toBeInTheDocument();
+	});
+
+	test('shows the reconnecting pill and veil while the connection is down', () => {
+		render(InstanceView, defaultParams);
+		expect(screen.queryByText('Reconnecting')).not.toBeInTheDocument();
+		expect(document.querySelector('.instance-veil')).not.toBeInTheDocument();
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		expect(screen.getByText('Reconnecting')).toBeInTheDocument();
+		expect(document.querySelector('.instance-veil')).toBeInTheDocument();
+		flushSync(() => { mockInstance.status = 'online'; });
+		expect(screen.queryByText('Reconnecting')).not.toBeInTheDocument();
+		expect(document.querySelector('.instance-veil')).not.toBeInTheDocument();
+	});
+
+	test('no reconnecting pill on the status screen of a host never reached', () => {
+		mockInstance.status = 'offline';
+		render(InstanceView, defaultParams);
+		expect(screen.queryByText('Reconnecting')).not.toBeInTheDocument();
+	});
+
+	test('hides the node dashboard button while reconnecting', () => {
+		render(InstanceView, defaultParams);
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		expect(screen.queryByTitle('Node dashboard')).not.toBeInTheDocument();
+		flushSync(() => { mockInstance.status = 'online'; });
+		expect(screen.getByTitle('Node dashboard')).toBeInTheDocument();
+	});
+
+	test('a power event still replaces the kept iframe', () => {
+		render(InstanceView, defaultParams);
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		flushSync(() => capturedCallbacks.onPowerAction?.('reboot'));
+		expect(screen.getByText('Server is rebooting')).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('giving up while reconnecting shows the poweroff choice screen', () => {
+		mockInstance.connectedAt = Date.now();
+		render(InstanceView, defaultParams);
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		// The connection reports offline and gives up in the same task.
+		flushSync(() => {
+			mockInstance.status = 'offline';
+			capturedCallbacks.onGiveUp?.();
+		});
+		expect(screen.getByText('Server is shutting down')).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('switching to an offline instance shows its status screen, not the kept iframe', async () => {
+		mockInstance2.status = 'offline';
+		const { rerender } = render(InstanceView, defaultParams);
+		await rerender(params('192.168.1.2', '8080'));
+		expect(screen.getByText('Server unreachable')).toBeInTheDocument();
+		expect(document.querySelector('iframe')).not.toBeInTheDocument();
+	});
+
+	test('switching to a reconnecting instance never mounts its iframe', async () => {
+		mockInstance2.status = 'reconnecting';
+		const { rerender } = render(InstanceView, defaultParams);
+		const mounted: string[] = [];
+		const observer = new MutationObserver((records) => {
+			for (const r of records) {
+				for (const n of r.addedNodes) {
+					if (n instanceof HTMLIFrameElement) mounted.push(n.src);
+				}
+			}
+		});
+		observer.observe(document.body, { childList: true, subtree: true });
+		await rerender(params('192.168.1.2', '8080'));
+		await Promise.resolve(); // deliver the mutation records
+		observer.disconnect();
+		expect(mounted).not.toContain('http://192.168.1.2:8080/ui');
+		expect(screen.getByText(/Connecting to/)).toBeInTheDocument();
+	});
+
+	test('leaving a transient instance while reconnecting still asks to save it', async () => {
+		mockInstance.transient = true;
+		render(InstanceView, defaultParams);
+		flushSync(() => { mockInstance.status = 'reconnecting'; });
+		await fireEvent.click(screen.getByTitle('Back to list'));
+		expect(mockState.savePromptVisible).toBe(true);
+		expect(goHome).not.toHaveBeenCalled();
 	});
 });
 

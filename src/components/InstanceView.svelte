@@ -62,6 +62,12 @@
 	let waiting = $state(false); // user chose to wait during poweroff
 	let iframeKey = $state(0);
 	let iframe = $state<HTMLIFrameElement>();
+	// Instance whose iframe has been on screen. While its server is
+	// reconnecting (odio-api restart, update) the iframe stays mounted, so the
+	// page the user navigated to (myMPD, admin) survives. Past the give-up
+	// delay the power screen takes over as before. Keyed by id: an instance
+	// opened while already reconnecting has no page to keep.
+	let uiShownFor = $state<string | null>(null);
 
 	function handlePowerAction(action: PowerEvent) {
 		powerEvent = action;
@@ -102,7 +108,8 @@
 	// Two-phase detection - reboot always auto-reconnects, poweroff only if user chose to wait.
 	$effect(() => {
 		if (powerEvent !== null) {
-			if (instance?.status === 'offline' || instance?.status === 'probing') {
+			const status = instance?.status;
+			if (status === 'reconnecting' || status === 'offline' || status === 'probing') {
 				serverWentOffline = true;
 			} else if (instance?.status === 'online' && serverWentOffline && (powerEvent === 'reboot' || waiting)) {
 				serverWentOffline = false;
@@ -113,13 +120,28 @@
 		}
 	});
 
-	// Trap browser back/forward while a connectable transient instance is open
-	// so the user gets the same Save prompt as the in-app back button. We push
-	// a sentinel entry; popstate then re-arms it and surfaces the dialog
-	// instead of letting the navigation through.
+	// The server is coming back and this view shows its UI: keep the iframe up.
+	const reconnecting = $derived(
+		instance?.status === 'reconnecting' && uiShownFor === instance.id,
+	);
+
+	// The iframe is mounted: no power event, and the UI is reachable or was
+	// shown before the connection dropped.
+	const frameMounted = $derived(
+		powerEvent === null && !!instance && (isConnectable(instance.status) || reconnecting),
+	);
+
+	$effect(() => {
+		if (frameMounted && instance) uiShownFor = instance.id;
+	});
+
+	// Trap browser back/forward while a transient instance's UI is open so the
+	// user gets the same Save prompt as the in-app back button. We push a
+	// sentinel entry; popstate then re-arms it and surfaces the dialog instead
+	// of letting the navigation through.
 	$effect(() => {
 		if (!instance?.transient) return;
-		if (!isConnectable(instance.status)) return;
+		if (!frameMounted) return;
 		history.pushState({ ...history.state, odioGuard: true }, '');
 		function onPopState() {
 			history.pushState({ ...history.state, odioGuard: true }, '');
@@ -129,10 +151,8 @@
 		return () => window.removeEventListener('popstate', onPopState);
 	});
 
-	// The iframe is on screen: no power screen, no connection status screen.
-	const showingUi = $derived(
-		powerEvent === null && !!instance && isConnectable(instance.status),
-	);
+	// The iframe is on screen and live: no power screen, no reconnection.
+	const showingUi = $derived(frameMounted && !reconnecting);
 
 	function startWaiting() {
 		waiting = true;
@@ -155,11 +175,10 @@
 		if (iframe) showInFrame(iframe, uiUrl);
 	}
 
-	// Leaving a transient instance asks to save it first. Only when it is
-	// actually connectable - asking to save an unreachable host would be
-	// pointless.
+	// Leaving a transient instance asks to save it first. Only when its UI is
+	// open - asking to save a host that never answered would be pointless.
 	function leave(go: () => void) {
-		if (instance?.transient && isConnectable(instance.status)) {
+		if (instance?.transient && frameMounted) {
 			appState.savePromptVisible = true;
 		} else {
 			go();
@@ -202,16 +221,24 @@
 			ondashboard={showingUi ? showDashboard : undefined}
 			transient={!!instance.transient}
 			onsave={saveTransient}
+			{reconnecting}
 		/>
 
 		{#if powerEvent !== null}
 			<PowerScreen event={powerEvent} {waiting} onstartwaiting={startWaiting} ondismiss={dismiss} />
-		{:else if isConnectable(instance.status)}
+		{:else if isConnectable(instance.status) || reconnecting}
 			<!-- Keyed on the URL too: switching instance swaps the whole iframe, as
 			     changing its src would add a history entry of its own. -->
-			{#key `${uiUrl}#${iframeKey}`}
-				<iframe bind:this={iframe} src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
-			{/key}
+			<div class="instance-frame">
+				{#key `${uiUrl}#${iframeKey}`}
+					<iframe bind:this={iframe} src={uiUrl} title="odio-api UI - {displayName}" class="instance-iframe" allow="autoplay; fullscreen"></iframe>
+				{/key}
+				<!-- Dims a UI that may be stale; clicks still go through, myMPD
+				     and the admin app often keep working while odio-api restarts. -->
+				{#if reconnecting}
+					<div class="instance-veil" aria-hidden="true"></div>
+				{/if}
+			</div>
 		{:else}
 			<ConnectionStatusScreen
 				status={instance.status}
